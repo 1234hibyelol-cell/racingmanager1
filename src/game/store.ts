@@ -279,7 +279,7 @@ export function useGameEngine() {
         setSkill: (id: string, skill: string, value: number) =>
           patch((s) => {
             const d = s.drivers[id];
-            if (d) (d.skills as Record<string, number>)[skill] = clamp(value);
+            if (d) (d.skills as unknown as Record<string, number>)[skill] = clamp(value);
           }),
         createDriver: () =>
           patch((s) => {
