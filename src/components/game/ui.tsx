@@ -25,7 +25,7 @@ export function Panel({
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string | undefined }) {
   return (
     <div className="panel px-3 py-3">
       <div className="label-xs">{label}</div>
@@ -94,7 +94,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export const inputClass =
   "w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm text-foreground outline-none focus:border-ring";
 
-export function Chip({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "accent" | "primary" }) {
+export function Chip({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "accent" | "primary" | undefined }) {
   const tones = {
     muted: "bg-muted text-muted-foreground",
     accent: "bg-accent/20 text-accent",
