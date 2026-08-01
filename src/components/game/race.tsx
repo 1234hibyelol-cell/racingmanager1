@@ -1,7 +1,7 @@
 // Rennwochenende: Training, Qualifying, Strategie, Simulation mit Überspringen-Buttons.
 import { useEffect, useRef, useState } from "react";
 import { TRACKS } from "@/game/data";
-import { carPerformance, carReliability, driverRating, money, simulateQualifying } from "@/game/engine";
+import { carPerformance, carReliability, driverRating, money } from "@/game/engine";
 import { useGame } from "@/game/store";
 import type { RaceRecord, Strategy } from "@/game/types";
 import { Bar, Button, Chip, Panel, Stat } from "./ui";
@@ -15,7 +15,6 @@ const STRATEGIES: { id: Strategy; label: string; desc: string }[] = [
 export function RaceScreen() {
   const { state, actions, settings, setScreen } = useGame();
   const [strategy, setStrategy] = useState<Strategy>("normal");
-  const [quali, setQuali] = useState<ReturnType<typeof simulateQualifying> | null>(null);
   const [record, setRecord] = useState<RaceRecord | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [visibleLog, setVisibleLog] = useState(0);
@@ -52,7 +51,6 @@ export function RaceScreen() {
     if (out) {
       setRecord(out.record);
       setLog(out.log);
-      setQuali(null);
     }
   };
 
@@ -117,10 +115,7 @@ export function RaceScreen() {
           </Button>
           <Button
             disabled={s.season.qualiDone || lineup.length === 0}
-            onClick={() => {
-              setQuali(simulateQualifying(s, strategy));
-              actions.runQualifying(strategy);
-            }}
+            onClick={() => actions.runQualifying(strategy)}
           >
             Qualifying simulieren
           </Button>
@@ -133,15 +128,21 @@ export function RaceScreen() {
         </div>
       </Panel>
 
-      {quali && (
+      {s.season.qualiDone && s.season.lastQualifying && !record && (
         <Panel title="Qualifying-Ergebnis">
           <ol className="grid gap-1 text-sm sm:grid-cols-2">
-            {quali.slice(0, 20).map((q) => (
-              <li key={q.driverId} className={`flex justify-between rounded px-2 py-1 ${q.teamName === s.team.name ? "bg-primary/15" : ""}`}>
-                <span>P{q.position} {q.driverName}</span>
-                <span className="text-xs text-muted-foreground">{q.teamName}</span>
-              </li>
-            ))}
+            {s.season.lastQualifying.slice(0, 20).map((q) => {
+              const d = s.drivers[q.driverId];
+              const own = s.team.lineup.includes(q.driverId);
+              return (
+                <li key={q.driverId} className={`flex justify-between rounded px-2 py-1 ${own ? "bg-primary/15" : ""}`}>
+                  <span>P{q.position} {d?.name ?? "?"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {own ? s.team.name : (s.aiTeams.find((t) => t.id === d?.teamId)?.name ?? "")}
+                  </span>
+                </li>
+              );
+            })}
           </ol>
         </Panel>
       )}
