@@ -7,7 +7,7 @@ export function Panel({
   children,
   className = "",
 }: {
-  title?: string;
+  title?: string | undefined;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -64,9 +64,9 @@ export function Button({
   type = "button",
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: (() => void) | undefined;
   variant?: BtnVariant;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
   className?: string;
   type?: "button" | "submit";
 }) {
@@ -107,7 +107,7 @@ export function Chip({ children, tone = "muted" }: { children: ReactNode; tone?:
   );
 }
 
-export function Avatar({ initials, color }: { initials: string; color?: string }) {
+export function Avatar({ initials, color }: { initials: string; color?: string | undefined }) {
   return (
     <span
       className="flex size-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold text-primary-foreground"
