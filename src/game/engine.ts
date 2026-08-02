@@ -20,7 +20,7 @@ import {
   WEATHER_LABELS,
   type TrackDef,
 } from "./data";
-import { SAVE_VERSION } from "./save";
+import { SAVE_VERSION } from "./version";
 import type {
   BuildingKey,
   Car,
