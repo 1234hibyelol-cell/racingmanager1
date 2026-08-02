@@ -77,10 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Legends Grid – Racing Manager" },
-      { name: "description", content: "Racing-Manager: Team, Fahrer, Fahrzeugentwicklung, Forschung, Rennen." },
+      { title: "Racing Manager" },
+      { name: "description", content: "Racing Manager: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: "Racing Manager" },
+      { name: "twitter:title", content: "Racing Manager" },
+      { property: "og:description", content: "Racing Manager: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft." },
+      { name: "twitter:description", content: "Racing Manager: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6f22165-0e6d-4a16-933d-a444ae833720/id-preview-5ac606a0--aef86bed-0f3c-4fa7-8148-b91969ec782b.lovable.app-1785682784816.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6f22165-0e6d-4a16-933d-a444ae833720/id-preview-5ac606a0--aef86bed-0f3c-4fa7-8148-b91969ec782b.lovable.app-1785682784816.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

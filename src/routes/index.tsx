@@ -20,16 +20,16 @@ import { GameContext, useGame, useGameEngine, type Screen } from "@/game/store";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Legends Grid – Racing Manager im Browser" },
+      { title: "Racing Manager" },
       {
         name: "description",
         content:
-          "Legends Grid: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft.",
+          "Racing Manager: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft.",
       },
-      { property: "og:title", content: "Legends Grid – Racing Manager" },
+      { property: "og:title", content: "Racing Manager" },
       {
         property: "og:description",
-        content: "Racing-Manager mit Fahrermarkt, Fahrzeugentwicklung, Forschung, Gebäuden und Rennsimulation.",
+        content: "Racing Manager: Gründe dein Motorsport-Team, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
