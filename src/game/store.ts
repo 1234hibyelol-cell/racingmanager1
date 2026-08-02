@@ -720,7 +720,25 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
   }
 
   const income = raceIncome(s, record.results);
-  s.team.money += income.sponsors + income.prize - weeklyCosts(s);
+  const comm = commercialIncome(s);
+  const costs = weeklyCosts(s);
+  const net = income.sponsors + income.prize + comm.tv + comm.merch + comm.tickets + comm.investors - costs;
+  s.team.money += net;
+  s.team.finance.lastReport = {
+    round: record.round,
+    sponsors: income.sponsors,
+    prize: income.prize,
+    tv: comm.tv,
+    merch: comm.merch,
+    tickets: comm.tickets,
+    investors: comm.investors,
+    salaries: Math.round(s.team.driverIds.reduce((x, id) => x + (s.drivers[id]?.salary ?? 0) / 12, 0)),
+    staff: staffCosts(s),
+    facilities: Object.values(s.team.buildings).reduce((x, b) => x + b.level * 40_000, 0),
+    marketing: s.team.finance.marketing * 70_000,
+    travel: s.team.finance.travelCost,
+    net,
+  };
 
   // Forschungsfortschritt
   for (const key of Object.keys(s.team.research) as ResearchKey[]) {
@@ -739,11 +757,31 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
   for (const p of Object.values(s.team.car.parts)) {
     p.reliability = clamp(p.reliability - 1.5, 1, 99);
   }
+  s.team.development.setup = clamp(s.team.development.setup - 8, 0, 100);
+
+  // Welt, Medien, Beziehungen
+  const bestPlayer = record.results
+    .filter((r) => r.teamId === "player" && r.position)
+    .map((r) => r.position!)
+    .sort((a, b) => a - b)[0] ?? null;
+  updateRelations(s, record.results.map((r) => ({ driverId: r.driverId, position: r.position })));
+  addRaceReactions(s, bestPlayer);
+  simulateWorldTick(s);
+  s.profile.xp += 60 + (bestPlayer ? Math.max(0, 30 - bestPlayer * 2) : 0);
+  if (s.profile.xp >= s.profile.level * 500) {
+    s.profile.level += 1;
+    s.profile.xp = 0;
+  }
+  s.profile.rating += bestPlayer && bestPlayer <= 5 ? 12 : -6;
 
   s.season.round += 1;
   s.season.trainingDone = false;
   s.season.qualiDone = false;
   s.season.lastQualifying = null;
+
+  if (s.season.round < s.season.calendar.length && !s.weather.locked) {
+    s.weather = makeWeather(getTrack(s, s.season.calendar[s.season.round]!));
+  }
 
   if (s.season.round >= s.season.calendar.length) endSeason(s, notify);
 }
@@ -751,9 +789,11 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
 function endSeason(s: GameState, notify: (m: string) => void) {
   const ranking = Object.entries(s.season.standings).sort((a, b) => b[1] - a[1]);
   const champ = ranking[0];
+  let championName = "–";
   if (champ) {
     const d = s.drivers[champ[0]];
     if (d) {
+      championName = d.name;
       d.stats.championships += 1;
       if (d.teamId === "player") {
         s.team.stats.championships += 1;
@@ -762,10 +802,22 @@ function endSeason(s: GameState, notify: (m: string) => void) {
     }
     notify(`Saison beendet – Champion: ${d?.name ?? "?"}`);
   }
-  const bonus = Math.max(0, 3_000_000 - (ranking.findIndex(([id]) => s.team.lineup.includes(id)) + 1) * 150_000);
+  const playerPos = ranking.findIndex(([id]) => s.team.lineup.includes(id)) + 1;
+  const bonus = Math.max(0, 3_000_000 - playerPos * 150_000);
   s.team.money += bonus;
   s.team.stats.seasonsPlayed += 1;
   s.team.history.push(`${s.season.year}: Saison abgeschlossen (${s.team.stats.points} Punkte gesamt).`);
+
+  const teamRanking = Object.entries(s.season.teamStandings).sort((a, b) => b[1] - a[1]);
+  const champTeamId = teamRanking[0]?.[0] ?? "";
+  s.world.archive.unshift({
+    year: s.season.year,
+    championDriver: championName,
+    championTeam: champTeamId === "player" ? s.team.name : (s.aiTeams.find((t) => t.id === champTeamId)?.name ?? "–"),
+    playerPoints: s.season.teamStandings["player"] ?? 0,
+    playerPosition: Math.max(1, teamRanking.findIndex(([id]) => id === "player") + 1),
+  });
+  pushNews(s, `${s.season.year}: ${championName} gewinnt die Meisterschaft.`, "record");
 
   // Neue Saison
   s.season = {
@@ -779,13 +831,21 @@ function endSeason(s: GameState, notify: (m: string) => void) {
     qualiDone: false,
     lastQualifying: null,
   };
+
+  // Fahrer-Lebenszyklus & Generationswechsel
   Object.values(s.drivers).forEach((d) => {
-    d.age += 1;
     if (d.contractSeasons > 0) d.contractSeasons -= 1;
+    developDriver(s, d);
   });
+  refreshGeneration(s);
+  updateRecords(s);
+
   s.availableSponsors = Array.from({ length: 4 }, createSponsor);
   s.team.sponsorIds = [];
+  s.events = s.events.map((e) => ({ ...e, done: false }));
+  if (!s.weather.locked) s.weather = makeWeather(getTrack(s, s.season.calendar[0]!));
 }
+
 
 export const GameContext = createContext<ReturnType<typeof useGameEngine> | null>(null);
 export function useGame() {
