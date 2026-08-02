@@ -4,29 +4,59 @@ import {
   BUILDINGS,
   buildingCost,
   carPerformance,
+  commercialIncome,
+  createCar,
   createDriver,
+  createEvent,
   createNewGame,
   createSponsor,
+  createStaff,
   clamp,
+  devCost,
   driverRating,
+  getTrack,
+  makeWeather,
   raceIncome,
   researchCost,
   simulateQualifying,
   simulateRace,
+  staffCosts,
   trainingCost,
+  uid,
   upgradeCost,
   weeklyCosts,
+  type DevAction,
   type NewGameOptions,
   type RaceOutcome,
 } from "./engine";
+import { PARTS } from "./engine";
+import {
+  addRaceReactions,
+  applyMediaOption,
+  developDriver,
+  pushNews,
+  refreshGeneration,
+  runYouthRace,
+  scoutYouth,
+  simulateWorldTick,
+  trainYouth,
+  updateRecords,
+  updateRelations,
+} from "./world";
 import { AUTO_SLOT, deleteSave, listSaves, loadGame, saveGame, type SaveMeta } from "./save";
+import { PREMIUM_ITEMS } from "./data";
 import type {
   BuildingKey,
+  Championship,
+  CustomTrack,
   GameState,
   PartKey,
   RaceRecord,
   ResearchKey,
+  StaffRole,
   Strategy,
+  TeamDesign,
+  WeatherKind,
 } from "./types";
 
 export type Screen =
@@ -44,6 +74,17 @@ export type Screen =
   | "race"
   | "sponsors"
   | "stats"
+  | "staff"
+  | "academy"
+  | "development"
+  | "design"
+  | "championships"
+  | "media"
+  | "finance"
+  | "events"
+  | "world"
+  | "profile"
+  | "premium"
   | "admin";
 
 export interface Settings {
@@ -273,8 +314,308 @@ export function useGameEngine() {
         patch((s) => applyRaceResult(s, outcome.record, notify));
         return outcome;
       },
+      /* --- Bauphase 2 --- */
+      hireStaff(id: string) {
+        patch((s) => {
+          const st = s.staff[id];
+          if (!st) return;
+          if (s.team.staffIds.length >= 12) return notify("Personalgrenze erreicht (12).") as undefined;
+          const fee = Math.round(st.salary * 0.25);
+          if (!spend(s, fee)) return notify("Nicht genug Budget.") as undefined;
+          st.teamId = "player";
+          s.team.staffIds.push(id);
+          s.staffMarket = s.staffMarket.filter((x) => x !== id);
+          notify(`${st.name} verstärkt das Team.`);
+        });
+      },
+      fireStaff(id: string) {
+        patch((s) => {
+          const st = s.staff[id];
+          if (!st) return;
+          st.teamId = null;
+          s.team.staffIds = s.team.staffIds.filter((x) => x !== id);
+          s.staffMarket.unshift(id);
+          s.team.money -= Math.round(st.salary * 0.3);
+          notify(`${st.name} verlässt das Team.`);
+        });
+      },
+      recruitStaff(role: StaffRole) {
+        patch((s) => {
+          const st = createStaff(role);
+          s.staff[st.id] = st;
+          s.staffMarket.unshift(st.id);
+          notify(`Neue Bewerbung: ${st.name} (${role}).`);
+        });
+      },
+      scoutYouth() {
+        patch((s) => {
+          if (!spend(s, 150_000)) return notify("Nicht genug Budget.") as undefined;
+          const d = scoutYouth(s);
+          notify(`Talent entdeckt: ${d.name}`);
+        });
+      },
+      trainYouth(id: string) {
+        patch((s) => {
+          if (!spend(s, 60_000)) return notify("Nicht genug Budget.") as undefined;
+          const gain = trainYouth(s, id);
+          notify(`Nachwuchstraining: +${gain.toFixed(1)} auf alle Fähigkeiten.`);
+        });
+      },
+      signYouth(id: string) {
+        patch((s) => {
+          if (!s.team.academyIds.includes(id)) s.team.academyIds.push(id);
+          s.youthProspects = s.youthProspects.filter((x) => x !== id);
+          const d = s.drivers[id];
+          if (d) {
+            d.academy = true;
+            d.teamId = "academy";
+            notify(`${d.name} in die Akademie aufgenommen.`);
+          }
+        });
+      },
+      promoteYouth(id: string) {
+        patch((s) => {
+          const d = s.drivers[id];
+          if (!d) return;
+          if (s.team.driverIds.length >= 4) return notify("Kader ist voll (max. 4).") as undefined;
+          d.academy = false;
+          d.teamId = "player";
+          d.contractSeasons = 3;
+          s.team.academyIds = s.team.academyIds.filter((x) => x !== id);
+          s.team.driverIds.push(id);
+          if (!s.team.lineup[0]) s.team.lineup[0] = id;
+          else if (!s.team.lineup[1]) s.team.lineup[1] = id;
+          pushNews(s, `${d.name} steigt aus der Akademie ins Renneam auf.`, "talent");
+          notify(`${d.name} befördert.`);
+        });
+      },
+      runYouthRace() {
+        patch((s) => {
+          if (!spend(s, 120_000)) return notify("Nicht genug Budget.") as undefined;
+          const table = runYouthRace(s);
+          notify(table[0] ? `Nachwuchsrennen: ${table[0].name} gewinnt.` : "Keine Teilnehmer.");
+        });
+      },
+      development(action: DevAction, part?: PartKey) {
+        if (!state) return;
+        const cost = devCost(state, action);
+        patch((s) => {
+          if (!spend(s, cost)) return notify("Nicht genug Budget.") as undefined;
+          const dev = s.team.development;
+          const eng = s.team.buildings.windTunnel.level;
+          if (action === "windTunnel") {
+            dev.windTunnelData = clamp(dev.windTunnelData + 12 + eng * 3, 0, 100);
+            notify(`Windkanaldaten: ${Math.round(dev.windTunnelData)}%`);
+          } else if (action === "simulation") {
+            dev.simulationData = clamp(dev.simulationData + 10 + s.team.buildings.lab.level * 2, 0, 100);
+            notify(`Simulationsdaten: ${Math.round(dev.simulationData)}%`);
+          } else if (action === "prototype") {
+            const target = part ?? PARTS[0]!;
+            const quality = clamp((dev.windTunnelData + dev.simulationData) / 2 + Math.random() * 20, 5, 100);
+            dev.prototypes.push({ id: uid("pro"), part: target, quality: Math.round(quality), tested: false });
+            dev.windTunnelData = clamp(dev.windTunnelData - 30, 0, 100);
+            dev.simulationData = clamp(dev.simulationData - 20, 0, 100);
+            if (Math.random() < 0.25) {
+              dev.flaws.push({ id: uid("flw"), part: target, label: "Entwicklungsfehler entdeckt", penalty: 2 });
+              notify("Prototyp gebaut – aber ein Entwicklungsfehler schleicht sich ein.");
+            } else notify(`Prototyp gebaut (Qualität ${Math.round(quality)}).`);
+          } else if (action === "testDrive") {
+            dev.testKm += 300;
+            dev.setup = clamp(dev.setup + 6 + s.team.buildings.simulator.level * 2, 0, 100);
+            const proto = dev.prototypes.find((p) => !p.tested);
+            if (proto) {
+              proto.tested = true;
+              const p = s.team.car.parts[proto.part];
+              if (p) {
+                p.performance = clamp(p.performance + proto.quality / 12, 1, 100);
+                p.level += 1;
+              }
+              notify(`Testfahrt: Prototyp ${proto.part} eingebaut.`);
+            } else notify("Testfahrt absolviert: Setup verbessert.");
+          } else {
+            const fixed = dev.flaws.shift();
+            for (const key of PARTS) {
+              const p = s.team.car.parts[key];
+              if (p) p.reliability = clamp(p.reliability + 1.5, 1, 99);
+            }
+            notify(fixed ? "Zuverlässigkeitstest: Entwicklungsfehler behoben." : "Zuverlässigkeitstest: alles im grünen Bereich.");
+          }
+        });
+      },
+      setDesign(patchDesign: Partial<TeamDesign>) {
+        patch((s) => {
+          s.team.design = { ...s.team.design, ...patchDesign };
+          if (patchDesign.primary) s.team.color = patchDesign.primary;
+          if (patchDesign.logo) s.team.logo = patchDesign.logo;
+        });
+      },
+      setDriverGear(id: string, gear: Partial<GameState["drivers"][string]["gear"]>) {
+        patch((s) => {
+          const d = s.drivers[id];
+          if (d) d.gear = { ...d.gear, ...gear };
+        });
+      },
+      createChampionship(c: Omit<Championship, "id" | "custom">) {
+        patch((s) => {
+          const champ: Championship = { ...c, id: uid("chp"), custom: true };
+          s.championships.push(champ);
+          notify(`Meisterschaft erstellt: ${champ.name}`);
+        });
+      },
+      deleteChampionship(id: string) {
+        patch((s) => {
+          s.championships = s.championships.filter((c) => c.id !== id);
+          if (s.activeChampionshipId === id) s.activeChampionshipId = s.championships[0]?.id ?? null;
+        });
+      },
+      activateChampionship(id: string) {
+        patch((s) => {
+          const c = s.championships.find((x) => x.id === id);
+          if (!c) return;
+          s.activeChampionshipId = id;
+          s.season.calendar = c.calendar.length ? c.calendar : s.season.calendar;
+          s.season.round = 0;
+          s.season.standings = {};
+          s.season.teamStandings = {};
+          s.season.races = [];
+          notify(`${c.name} ist jetzt aktive Serie.`);
+        });
+      },
+      answerMedia(eventId: string, optionId: string) {
+        patch((s) => notify(applyMediaOption(s, eventId, optionId)) as undefined);
+      },
+      finance(field: "merchLevel" | "ticketLevel" | "marketing" | "factory" | "investors", delta: number) {
+        patch((s) => {
+          const f = s.team.finance;
+          if (delta > 0) {
+            const cost = field === "investors" ? 0 : 500_000;
+            if (cost && !spend(s, cost)) return notify("Nicht genug Budget.") as undefined;
+            if (field === "investors") s.team.money += 2_000_000;
+          }
+          f[field] = Math.max(0, f[field] + delta);
+          notify("Wirtschaftsplan angepasst.");
+        });
+      },
+      enterEvent(id: string) {
+        if (!state) return;
+        patch((s) => {
+          const ev = s.events.find((e) => e.id === id);
+          if (!ev || ev.done) return;
+          if (!spend(s, ev.entryFee)) return notify("Startgeld reicht nicht.") as undefined;
+          const out = simulateRace(s, "normal", ev.trackId);
+          const best = out.record.results.find((r) => r.teamId === "player");
+          const placed = best?.position ?? 20;
+          const reward = Math.round(ev.reward * Math.max(0.2, 1 - (placed - 1) * 0.06));
+          s.team.money += reward;
+          s.team.reputation = clamp(s.team.reputation + (placed <= 3 ? ev.reputation : 1), 0, 100);
+          ev.done = true;
+          pushNews(s, `${ev.name}: P${placed} für ${s.team.name} (${reward.toLocaleString("de-DE")} €).`, "event");
+          notify(`${ev.name} beendet – P${placed}, Prämie ${reward.toLocaleString("de-DE")} €`);
+        });
+      },
+      buyPremium(itemId: string) {
+        patch((s) => {
+          const item = PREMIUM_ITEMS.find((i) => i.id === itemId);
+          if (!item) return;
+          if (s.premium.owned.includes(itemId)) return notify("Bereits im Besitz.") as undefined;
+          if (s.premium.credits < item.price) return notify("Nicht genug Credits.") as undefined;
+          s.premium.credits -= item.price;
+          s.premium.owned.push(itemId);
+          if (item.id === "cmf_slots") s.premium.saveSlots += 4;
+          if (item.id === "cmf_stats") s.premium.advancedStats = true;
+          if (item.kind === "theme") s.premium.theme = item.name;
+          notify(`${item.name} freigeschaltet.`);
+        });
+      },
+      addCredits(n: number) {
+        patch((s) => void (s.premium.credits += n));
+      },
       /* Admin */
       admin: {
+        createStaff: (role: StaffRole) =>
+          patch((s) => {
+            const st = createStaff(role, 92);
+            s.staff[st.id] = st;
+            s.staffMarket.unshift(st.id);
+            notify(`Top-Mitarbeiter erstellt: ${st.name}`);
+          }),
+        setWeather: (kind: WeatherKind) =>
+          patch((s) => {
+            s.weather = { ...s.weather, kind, locked: true };
+            notify(`Wetter festgelegt: ${kind}`);
+          }),
+        unlockWeather: () => patch((s) => void (s.weather.locked = false)),
+        createTrack: (t: Omit<CustomTrack, "id">) =>
+          patch((s) => {
+            const track: CustomTrack = { ...t, id: uid("trk") };
+            s.customTracks.push(track);
+            s.season.calendar.push(track.id);
+            notify(`Strecke erstellt: ${track.name}`);
+          }),
+        startEvent: (kind: "winter" | "summer" | "special" | "historic" | "community") =>
+          patch((s) => {
+            s.events.unshift(createEvent(kind));
+            notify("Event gestartet.");
+          }),
+        createTeam: (name: string, color: string, strength: number) =>
+          patch((s) => {
+            s.aiTeams.push({ id: uid("ai"), name, color, strength: clamp(strength, 30, 99), driverIds: [], development: 1 });
+            notify(`Team erstellt: ${name}`);
+          }),
+        editTeam: (id: string, field: "name" | "color" | "strength", value: string | number) =>
+          patch((s) => {
+            const t = s.aiTeams.find((x) => x.id === id);
+            if (!t) return;
+            if (field === "strength") t.strength = clamp(Number(value), 30, 99);
+            else if (field === "name") t.name = String(value);
+            else t.color = String(value);
+          }),
+        rerollSponsors: () => patch((s) => void (s.availableSponsors = Array.from({ length: 4 }, createSponsor))),
+        resetSeason: () =>
+          patch((s) => {
+            s.season.round = 0;
+            s.season.standings = {};
+            s.season.teamStandings = {};
+            s.season.races = [];
+            s.season.trainingDone = false;
+            s.season.qualiDone = false;
+            s.season.lastQualifying = null;
+            notify("Saison zurückgesetzt.");
+          }),
+        grantReward: (money: number, credits: number, reputation: number) =>
+          patch((s) => {
+            s.team.money += money;
+            s.premium.credits += credits;
+            s.team.reputation = clamp(s.team.reputation + reputation, 0, 100);
+            notify("Belohnung vergeben.");
+          }),
+        newCar: () => patch((s) => void (s.team.car = createCar(s.team.car.name))),
+        editDriver: (id: string, field: "name" | "age" | "nationality" | "salary" | "marketValue", value: string | number) =>
+          patch((s) => {
+            const d = s.drivers[id];
+            if (!d) return;
+            if (field === "name") d.name = String(value);
+            else if (field === "nationality") d.nationality = String(value);
+            else d[field] = Number(value);
+          }),
+        setTrait: (id: string, trait: string, value: number) =>
+          patch((s) => {
+            const d = s.drivers[id];
+            if (d && trait in d.traits) (d.traits as unknown as Record<string, number>)[trait] = clamp(value);
+          }),
+        worldTick: () =>
+          patch((s) => {
+            simulateWorldTick(s);
+            notify("Welt-Simulation ausgeführt.");
+          }),
+        ageSeason: () =>
+          patch((s) => {
+            Object.values(s.drivers).forEach((d) => developDriver(s, d));
+            refreshGeneration(s);
+            updateRecords(s);
+            notify("Ein Jahr Motorsport-Welt simuliert.");
+          }),
+
         addMoney: (amount: number) => patch((s) => void (s.team.money += amount)),
         setSkill: (id: string, skill: string, value: number) =>
           patch((s) => {
@@ -379,7 +720,25 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
   }
 
   const income = raceIncome(s, record.results);
-  s.team.money += income.sponsors + income.prize - weeklyCosts(s);
+  const comm = commercialIncome(s);
+  const costs = weeklyCosts(s);
+  const net = income.sponsors + income.prize + comm.tv + comm.merch + comm.tickets + comm.investors - costs;
+  s.team.money += net;
+  s.team.finance.lastReport = {
+    round: record.round,
+    sponsors: income.sponsors,
+    prize: income.prize,
+    tv: comm.tv,
+    merch: comm.merch,
+    tickets: comm.tickets,
+    investors: comm.investors,
+    salaries: Math.round(s.team.driverIds.reduce((x, id) => x + (s.drivers[id]?.salary ?? 0) / 12, 0)),
+    staff: staffCosts(s),
+    facilities: Object.values(s.team.buildings).reduce((x, b) => x + b.level * 40_000, 0),
+    marketing: s.team.finance.marketing * 70_000,
+    travel: s.team.finance.travelCost,
+    net,
+  };
 
   // Forschungsfortschritt
   for (const key of Object.keys(s.team.research) as ResearchKey[]) {
@@ -398,11 +757,31 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
   for (const p of Object.values(s.team.car.parts)) {
     p.reliability = clamp(p.reliability - 1.5, 1, 99);
   }
+  s.team.development.setup = clamp(s.team.development.setup - 8, 0, 100);
+
+  // Welt, Medien, Beziehungen
+  const bestPlayer = record.results
+    .filter((r) => r.teamId === "player" && r.position)
+    .map((r) => r.position!)
+    .sort((a, b) => a - b)[0] ?? null;
+  updateRelations(s, record.results.map((r) => ({ driverId: r.driverId, position: r.position })));
+  addRaceReactions(s, bestPlayer);
+  simulateWorldTick(s);
+  s.profile.xp += 60 + (bestPlayer ? Math.max(0, 30 - bestPlayer * 2) : 0);
+  if (s.profile.xp >= s.profile.level * 500) {
+    s.profile.level += 1;
+    s.profile.xp = 0;
+  }
+  s.profile.rating += bestPlayer && bestPlayer <= 5 ? 12 : -6;
 
   s.season.round += 1;
   s.season.trainingDone = false;
   s.season.qualiDone = false;
   s.season.lastQualifying = null;
+
+  if (s.season.round < s.season.calendar.length && !s.weather.locked) {
+    s.weather = makeWeather(getTrack(s, s.season.calendar[s.season.round]!));
+  }
 
   if (s.season.round >= s.season.calendar.length) endSeason(s, notify);
 }
@@ -410,9 +789,11 @@ function applyRaceResult(s: GameState, record: RaceRecord, notify: (m: string) =
 function endSeason(s: GameState, notify: (m: string) => void) {
   const ranking = Object.entries(s.season.standings).sort((a, b) => b[1] - a[1]);
   const champ = ranking[0];
+  let championName = "–";
   if (champ) {
     const d = s.drivers[champ[0]];
     if (d) {
+      championName = d.name;
       d.stats.championships += 1;
       if (d.teamId === "player") {
         s.team.stats.championships += 1;
@@ -421,10 +802,22 @@ function endSeason(s: GameState, notify: (m: string) => void) {
     }
     notify(`Saison beendet – Champion: ${d?.name ?? "?"}`);
   }
-  const bonus = Math.max(0, 3_000_000 - (ranking.findIndex(([id]) => s.team.lineup.includes(id)) + 1) * 150_000);
+  const playerPos = ranking.findIndex(([id]) => s.team.lineup.includes(id)) + 1;
+  const bonus = Math.max(0, 3_000_000 - playerPos * 150_000);
   s.team.money += bonus;
   s.team.stats.seasonsPlayed += 1;
   s.team.history.push(`${s.season.year}: Saison abgeschlossen (${s.team.stats.points} Punkte gesamt).`);
+
+  const teamRanking = Object.entries(s.season.teamStandings).sort((a, b) => b[1] - a[1]);
+  const champTeamId = teamRanking[0]?.[0] ?? "";
+  s.world.archive.unshift({
+    year: s.season.year,
+    championDriver: championName,
+    championTeam: champTeamId === "player" ? s.team.name : (s.aiTeams.find((t) => t.id === champTeamId)?.name ?? "–"),
+    playerPoints: s.season.teamStandings["player"] ?? 0,
+    playerPosition: Math.max(1, teamRanking.findIndex(([id]) => id === "player") + 1),
+  });
+  pushNews(s, `${s.season.year}: ${championName} gewinnt die Meisterschaft.`, "record");
 
   // Neue Saison
   s.season = {
@@ -438,13 +831,21 @@ function endSeason(s: GameState, notify: (m: string) => void) {
     qualiDone: false,
     lastQualifying: null,
   };
+
+  // Fahrer-Lebenszyklus & Generationswechsel
   Object.values(s.drivers).forEach((d) => {
-    d.age += 1;
     if (d.contractSeasons > 0) d.contractSeasons -= 1;
+    developDriver(s, d);
   });
+  refreshGeneration(s);
+  updateRecords(s);
+
   s.availableSponsors = Array.from({ length: 4 }, createSponsor);
   s.team.sponsorIds = [];
+  s.events = s.events.map((e) => ({ ...e, done: false }));
+  if (!s.weather.locked) s.weather = makeWeather(getTrack(s, s.season.calendar[0]!));
 }
+
 
 export const GameContext = createContext<ReturnType<typeof useGameEngine> | null>(null);
 export function useGame() {
