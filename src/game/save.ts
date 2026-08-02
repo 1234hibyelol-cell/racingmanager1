@@ -1,12 +1,13 @@
-// Speichersystem: LocalStorage-Adapter mit Slot-Verwaltung.
-// Der Adapter ist absichtlich isoliert, damit Bauphase 2 Cloud-Saves ergänzen kann.
+// Speichersystem: LocalStorage-Adapter mit Slot-Verwaltung + Schema-Migration.
+import { ensureExpansion } from "./migrate";
 import type { GameState } from "./types";
+import { SAVE_VERSION } from "./version";
 
-export const SAVE_VERSION = 1;
+export { SAVE_VERSION };
 const PREFIX = "legends-grid/save/";
 const INDEX_KEY = "legends-grid/index";
 export const AUTO_SLOT = 0;
-export const SLOT_COUNT = 4;
+export const SLOT_COUNT = 8;
 
 export interface SaveMeta {
   slot: number;
@@ -87,7 +88,9 @@ export function deleteSave(slot: number) {
   writeIndex(readIndex().filter((m) => m.slot !== slot));
 }
 
-/** Platzhalter für zukünftige Schema-Migrationen. */
+/** Schema-Migration: alte Bauphase-1-Spielstände werden mit Bauphase-2-Daten aufgefüllt. */
 function migrate(state: GameState): GameState {
-  return state;
+  const next = ensureExpansion(state);
+  next.version = SAVE_VERSION;
+  return next;
 }
