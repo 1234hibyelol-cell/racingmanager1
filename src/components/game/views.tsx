@@ -7,6 +7,7 @@ import {
   TRACKS,
 } from "@/game/data";
 import {
+  STAGE_LABELS,
   buildingCost,
   carPerformance,
   carReliability,
@@ -34,19 +35,30 @@ const SKILL_LABELS: Record<string, string> = {
   talent: "Talent",
 };
 
+const TRAIT_LABELS: Record<string, string> = {
+  motivation: "Motivation",
+  confidence: "Selbstvertrauen",
+  pressure: "Druckresistenz",
+  popularity: "Beliebtheit",
+  loyalty: "Teamtreue",
+  aggression: "Aggressivität",
+  mediaSkill: "Medienverhalten",
+};
+
 function teamName(s: GameState, id: string) {
   return id === "player" ? s.team.name : (s.aiTeams.find((t) => t.id === id)?.name ?? "Frei");
 }
 
 export function Dashboard() {
   const { state, setScreen } = useGame();
+  const pos = useMemo(() => {
+    if (!state) return 0;
+    const ranking = Object.entries(state.season.teamStandings).sort((a, b) => b[1] - a[1]);
+    const idx = ranking.findIndex(([id]) => id === "player");
+    return idx >= 0 ? idx + 1 : state.aiTeams.length + 1;
+  }, [state]);
   if (!state) return null;
   const s = state;
-  const pos = useMemo(() => {
-    const ranking = Object.entries(s.season.teamStandings).sort((a, b) => b[1] - a[1]);
-    const idx = ranking.findIndex(([id]) => id === "player");
-    return idx >= 0 ? idx + 1 : s.aiTeams.length + 1;
-  }, [s]);
   const activeResearch = (Object.keys(s.team.research) as ResearchKey[]).filter((k) => s.team.research[k].active);
 
   return (
@@ -220,11 +232,16 @@ function DriverCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-display text-lg font-bold">{driver.name}</span>
             <Chip tone="accent">Rating {driverRating(driver)}</Chip>
+            <Chip tone="primary">{STAGE_LABELS[driver.stage]}</Chip>
+            {driver.legend && <Chip tone="accent">Legende</Chip>}
           </div>
           <div className="text-xs text-muted-foreground">
             {driver.age} Jahre · {driver.nationality} · Marktwert {money(driver.marketValue)} · Gehalt{" "}
             {money(driver.salary)}/Saison
             {owned && ` · Vertrag ${driver.contractSeasons} Saison(s)`}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {driver.traits.personality} · Höhepunkt {driver.peakAge} J. · Form {Math.round(driver.form)}
           </div>
         </div>
       </div>
@@ -240,6 +257,32 @@ function DriverCard({
           </div>
         ))}
       </div>
+
+      <div className="mt-3 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        {Object.entries(TRAIT_LABELS).map(([k, label]) => {
+          const v = (driver.traits as unknown as Record<string, number>)[k] ?? 0;
+          return (
+            <div key={k}>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{label}</span>
+                <span>{Math.round(v)}</span>
+              </div>
+              <Bar value={v} tone="muted" />
+            </div>
+          );
+        })}
+      </div>
+
+      {(driver.rivalIds.length > 0 || driver.friendIds.length > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1 text-xs text-muted-foreground">
+          {driver.rivalIds.slice(0, 3).map((id) => (
+            <span key={id} className="rounded bg-destructive/20 px-2 py-0.5">Rivale: {state.drivers[id]?.name}</span>
+          ))}
+          {driver.friendIds.slice(0, 3).map((id) => (
+            <span key={id} className="rounded bg-accent/20 px-2 py-0.5">Freund: {state.drivers[id]?.name}</span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         {owned ? (

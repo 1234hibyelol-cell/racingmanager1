@@ -1,6 +1,6 @@
 // Rennwochenende: Training, Qualifying, Strategie, Simulation mit Überspringen-Buttons.
 import { useEffect, useRef, useState } from "react";
-import { TRACKS } from "@/game/data";
+import { TRACKS, TRACK_KIND_LABELS, WEATHER_LABELS } from "@/game/data";
 import { carPerformance, carReliability, driverRating, money } from "@/game/engine";
 import { useGame } from "@/game/store";
 import type { RaceRecord, Strategy } from "@/game/types";
@@ -54,14 +54,23 @@ export function RaceScreen() {
     }
   };
 
+  const weather = WEATHER_LABELS[s.weather.kind];
+
   return (
     <div className="space-y-4">
       <Panel title={`Rennwochenende · ${track.name}`}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Strecke" value={track.name} hint={`${track.country} · ${track.laps} Runden`} />
-          <Stat label="Fahrzeugleistung" value={Math.round(carPerformance(s))} />
-          <Stat label="Zuverlässigkeit" value={`${Math.round(carReliability(s))}%`} />
-          <Stat label="Kasse" value={money(s.team.money)} />
+          <Stat label="Strecke" value={track.name} hint={`${TRACK_KIND_LABELS[track.kind]} · ${track.laps} Runden`} />
+          <Stat label="Wetter" value={`${weather.icon} ${weather.label}`} hint={`${s.weather.temperature}°C · ${weather.desc}`} />
+          <Stat label="Fahrzeugleistung" value={Math.round(carPerformance(s))} hint={`Zuverlässigkeit ${Math.round(carReliability(s))}%`} />
+          <Stat label="Setup" value={`${Math.round(s.team.development.setup)}%`} hint={money(s.team.money)} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Chip>Länge {track.lengthKm} km</Chip>
+          <Chip>{track.cornerCount} Kurven</Chip>
+          <Chip>Verschleiß {track.tyreWear}/10</Chip>
+          <Chip>Überholen {track.overtaking}/10</Chip>
+          <Chip tone="accent">Prognose: {s.weather.forecast.map((f) => WEATHER_LABELS[f].icon).join(" ")}</Chip>
         </div>
       </Panel>
 
@@ -161,7 +170,7 @@ export function RaceScreen() {
         <Panel title={`Ergebnis · ${record.trackName}`}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="label-xs text-left"><th className="py-1">Pos</th><th>Fahrer</th><th>Team</th><th>Start</th><th className="text-right">Punkte</th></tr>
+              <tr className="label-xs text-left"><th className="py-1">Pos</th><th>Fahrer</th><th>Team</th><th>Start</th><th>Vorfälle</th><th className="text-right">Punkte</th></tr>
             </thead>
             <tbody>
               {record.results.slice(0, 20).map((r) => (
@@ -169,7 +178,11 @@ export function RaceScreen() {
                   <td className="py-1">{r.dnf ? "DNF" : r.position}</td>
                   <td>{r.driverName} {r.fastestLap ? "⚡" : ""}</td>
                   <td className="text-xs text-muted-foreground">{r.teamName}</td>
-                  <td>P{r.grid}</td>
+                  <td>P{r.grid}{r.position && !r.dnf ? ` (${r.grid - r.position >= 0 ? "+" : ""}${r.grid - r.position})` : ""}</td>
+                  <td className="text-xs text-muted-foreground">
+                    {(r.incidents ?? []).join(", ")}
+                    {r.penaltySeconds ? ` +${r.penaltySeconds}s` : ""}
+                  </td>
                   <td className="text-right font-bold">{r.points}</td>
                 </tr>
               ))}
@@ -177,6 +190,12 @@ export function RaceScreen() {
           </table>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => setScreen("season")}>Meisterschaftsstand</Button>
+            {s.media.pending.length > 0 && (
+              <Button variant="accent" onClick={() => setScreen("media")}>
+                Medientermine ({s.media.pending.length})
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setScreen("finance")}>Finanzbericht</Button>
             <Button
               onClick={() => {
                 setRecord(null);
