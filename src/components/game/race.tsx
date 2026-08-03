@@ -170,7 +170,7 @@ export function RaceScreen() {
         <Panel title={`Ergebnis · ${record.trackName}`}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="label-xs text-left"><th className="py-1">Pos</th><th>Fahrer</th><th>Team</th><th>Start</th><th className="text-right">Punkte</th></tr>
+              <tr className="label-xs text-left"><th className="py-1">Pos</th><th>Fahrer</th><th>Team</th><th>Start</th><th>Vorfälle</th><th className="text-right">Punkte</th></tr>
             </thead>
             <tbody>
               {record.results.slice(0, 20).map((r) => (
@@ -178,7 +178,11 @@ export function RaceScreen() {
                   <td className="py-1">{r.dnf ? "DNF" : r.position}</td>
                   <td>{r.driverName} {r.fastestLap ? "⚡" : ""}</td>
                   <td className="text-xs text-muted-foreground">{r.teamName}</td>
-                  <td>P{r.grid}</td>
+                  <td>P{r.grid}{r.position && !r.dnf ? ` (${r.grid - r.position >= 0 ? "+" : ""}${r.grid - r.position})` : ""}</td>
+                  <td className="text-xs text-muted-foreground">
+                    {(r.incidents ?? []).join(", ")}
+                    {r.penaltySeconds ? ` +${r.penaltySeconds}s` : ""}
+                  </td>
                   <td className="text-right font-bold">{r.points}</td>
                 </tr>
               ))}
@@ -186,6 +190,12 @@ export function RaceScreen() {
           </table>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => setScreen("season")}>Meisterschaftsstand</Button>
+            {s.media.pending.length > 0 && (
+              <Button variant="accent" onClick={() => setScreen("media")}>
+                Medientermine ({s.media.pending.length})
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setScreen("finance")}>Finanzbericht</Button>
             <Button
               onClick={() => {
                 setRecord(null);
