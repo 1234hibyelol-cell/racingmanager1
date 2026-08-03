@@ -5,6 +5,7 @@ import { money } from "@/game/engine";
 import { useGame } from "@/game/store";
 import type { BuildingKey, PartKey, ResearchKey } from "@/game/types";
 import { Button, Chip, Field, Panel, inputClass } from "./ui";
+import { AdminWorldPanels } from "./admin-world";
 
 export function AdminScreen() {
   const { adminUnlocked, setAdminUnlocked, state, actions, setScreen, notify } = useGame();
