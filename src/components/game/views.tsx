@@ -34,6 +34,16 @@ const SKILL_LABELS: Record<string, string> = {
   talent: "Talent",
 };
 
+const TRAIT_LABELS: Record<string, string> = {
+  motivation: "Motivation",
+  confidence: "Selbstvertrauen",
+  pressure: "Druckresistenz",
+  popularity: "Beliebtheit",
+  loyalty: "Teamtreue",
+  aggression: "Aggressivität",
+  mediaSkill: "Medienverhalten",
+};
+
 function teamName(s: GameState, id: string) {
   return id === "player" ? s.team.name : (s.aiTeams.find((t) => t.id === id)?.name ?? "Frei");
 }
