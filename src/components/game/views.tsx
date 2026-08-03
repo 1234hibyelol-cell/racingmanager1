@@ -51,13 +51,14 @@ function teamName(s: GameState, id: string) {
 
 export function Dashboard() {
   const { state, setScreen } = useGame();
+  const pos = useMemo(() => {
+    if (!state) return 0;
+    const ranking = Object.entries(state.season.teamStandings).sort((a, b) => b[1] - a[1]);
+    const idx = ranking.findIndex(([id]) => id === "player");
+    return idx >= 0 ? idx + 1 : state.aiTeams.length + 1;
+  }, [state]);
   if (!state) return null;
   const s = state;
-  const pos = useMemo(() => {
-    const ranking = Object.entries(s.season.teamStandings).sort((a, b) => b[1] - a[1]);
-    const idx = ranking.findIndex(([id]) => id === "player");
-    return idx >= 0 ? idx + 1 : s.aiTeams.length + 1;
-  }, [s]);
   const activeResearch = (Object.keys(s.team.research) as ResearchKey[]).filter((k) => s.team.research[k].active);
 
   return (
