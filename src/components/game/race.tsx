@@ -1,6 +1,6 @@
 // Rennwochenende: Training, Qualifying, Strategie, Simulation mit Überspringen-Buttons.
 import { useEffect, useRef, useState } from "react";
-import { TRACKS } from "@/game/data";
+import { TRACKS, TRACK_KIND_LABELS, WEATHER_LABELS } from "@/game/data";
 import { carPerformance, carReliability, driverRating, money } from "@/game/engine";
 import { useGame } from "@/game/store";
 import type { RaceRecord, Strategy } from "@/game/types";
