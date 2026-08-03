@@ -14,6 +14,20 @@ import {
   SponsorsScreen,
   StatsScreen,
 } from "@/components/game/views";
+import {
+  AcademyScreen,
+  ChampionshipsScreen,
+  DesignScreen,
+  DevelopmentScreen,
+  EventsScreen,
+  FinanceScreen,
+  MediaScreen,
+  PremiumScreen,
+  ProfileScreen,
+  StaffScreen,
+  WorldScreen,
+} from "@/components/game/views2";
+import { WEATHER_LABELS } from "@/game/data";
 import { money } from "@/game/engine";
 import { GameContext, useGame, useGameEngine, type Screen } from "@/game/store";
 
