@@ -54,14 +54,23 @@ export function RaceScreen() {
     }
   };
 
+  const weather = WEATHER_LABELS[s.weather.kind];
+
   return (
     <div className="space-y-4">
       <Panel title={`Rennwochenende · ${track.name}`}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Strecke" value={track.name} hint={`${track.country} · ${track.laps} Runden`} />
-          <Stat label="Fahrzeugleistung" value={Math.round(carPerformance(s))} />
-          <Stat label="Zuverlässigkeit" value={`${Math.round(carReliability(s))}%`} />
-          <Stat label="Kasse" value={money(s.team.money)} />
+          <Stat label="Strecke" value={track.name} hint={`${TRACK_KIND_LABELS[track.kind]} · ${track.laps} Runden`} />
+          <Stat label="Wetter" value={`${weather.icon} ${weather.label}`} hint={`${s.weather.temperature}°C · ${weather.desc}`} />
+          <Stat label="Fahrzeugleistung" value={Math.round(carPerformance(s))} hint={`Zuverlässigkeit ${Math.round(carReliability(s))}%`} />
+          <Stat label="Setup" value={`${Math.round(s.team.development.setup)}%`} hint={money(s.team.money)} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Chip>Länge {track.lengthKm} km</Chip>
+          <Chip>{track.cornerCount} Kurven</Chip>
+          <Chip>Verschleiß {track.tyreWear}/10</Chip>
+          <Chip>Überholen {track.overtaking}/10</Chip>
+          <Chip tone="accent">Prognose: {s.weather.forecast.map((f) => WEATHER_LABELS[f].icon).join(" ")}</Chip>
         </div>
       </Panel>
 
