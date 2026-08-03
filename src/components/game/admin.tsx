@@ -169,6 +169,8 @@ export function AdminScreen() {
           </div>
           <Button onClick={() => actions.admin.maxBuildings()}>Alle Gebäude +1</Button>
         </Panel>
+
+        <AdminWorldPanels />
       </div>
     </div>
   );
