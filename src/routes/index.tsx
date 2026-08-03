@@ -54,17 +54,48 @@ function GameRoot() {
   );
 }
 
-const NAV: { id: Screen; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "drivers", label: "Fahrer" },
-  { id: "market", label: "Markt" },
-  { id: "car", label: "Fahrzeug" },
-  { id: "research", label: "Forschung" },
-  { id: "buildings", label: "Gebäude" },
-  { id: "season", label: "Saison" },
-  { id: "race", label: "Rennen" },
-  { id: "sponsors", label: "Sponsoren" },
-  { id: "stats", label: "Statistik" },
+const NAV_GROUPS: { group: string; items: { id: Screen; label: string }[] }[] = [
+  {
+    group: "Team",
+    items: [
+      { id: "dashboard", label: "Dashboard" },
+      { id: "drivers", label: "Fahrer" },
+      { id: "staff", label: "Personal" },
+      { id: "academy", label: "Akademie" },
+      { id: "market", label: "Markt" },
+    ],
+  },
+  {
+    group: "Technik",
+    items: [
+      { id: "car", label: "Fahrzeug" },
+      { id: "development", label: "Entwicklung" },
+      { id: "research", label: "Forschung" },
+      { id: "buildings", label: "Gebäude" },
+      { id: "design", label: "Design" },
+    ],
+  },
+  {
+    group: "Wettbewerb",
+    items: [
+      { id: "race", label: "Rennen" },
+      { id: "season", label: "Saison" },
+      { id: "championships", label: "Serien" },
+      { id: "events", label: "Events" },
+      { id: "world", label: "Welt" },
+    ],
+  },
+  {
+    group: "Geschäft",
+    items: [
+      { id: "sponsors", label: "Sponsoren" },
+      { id: "finance", label: "Wirtschaft" },
+      { id: "media", label: "Medien" },
+      { id: "stats", label: "Statistik" },
+      { id: "profile", label: "Profil" },
+      { id: "premium", label: "Premium" },
+    ],
+  },
 ];
 
 function Shell() {
@@ -98,6 +129,8 @@ function Shell() {
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone="accent">{money(state.team.money)}</Chip>
           <Chip tone="primary">Ruf {state.team.reputation}</Chip>
+          <Chip>{WEATHER_LABELS[state.weather.kind].icon} {state.weather.temperature}°C</Chip>
+          {state.media.pending.length > 0 && <Chip tone="accent">{state.media.pending.length} Medien</Chip>}
           <Button variant="ghost" onClick={() => save(1)}>Speichern</Button>
           <Button variant="ghost" onClick={() => setScreen("load")}>Slots</Button>
           <Button variant="ghost" onClick={() => setScreen("settings")}>⚙</Button>
@@ -105,17 +138,22 @@ function Shell() {
         </div>
       </header>
 
-      <nav className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {NAV.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => setScreen(n.id)}
-            className={`shrink-0 rounded-md px-3 py-2 font-display text-sm font-bold uppercase tracking-wide transition ${
-              screen === n.id ? "speed-fill text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-elevated"
-            }`}
-          >
-            {n.label}
-          </button>
+      <nav className="mb-4 space-y-2">
+        {NAV_GROUPS.map((g) => (
+          <div key={g.group} className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="label-xs w-20 shrink-0">{g.group}</span>
+            {g.items.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => setScreen(n.id)}
+                className={`shrink-0 rounded-md px-3 py-2 font-display text-sm font-bold uppercase tracking-wide transition ${
+                  screen === n.id ? "speed-fill text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-elevated"
+                }`}
+              >
+                {n.label}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
 
@@ -129,6 +167,17 @@ function Shell() {
       {screen === "race" && <RaceScreen />}
       {screen === "sponsors" && <SponsorsScreen />}
       {screen === "stats" && <StatsScreen />}
+      {screen === "staff" && <StaffScreen />}
+      {screen === "academy" && <AcademyScreen />}
+      {screen === "development" && <DevelopmentScreen />}
+      {screen === "design" && <DesignScreen />}
+      {screen === "championships" && <ChampionshipsScreen />}
+      {screen === "media" && <MediaScreen />}
+      {screen === "finance" && <FinanceScreen />}
+      {screen === "events" && <EventsScreen />}
+      {screen === "world" && <WorldScreen />}
+      {screen === "profile" && <ProfileScreen />}
+      {screen === "premium" && <PremiumScreen />}
     </div>
   );
 }
