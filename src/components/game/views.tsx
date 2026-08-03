@@ -220,11 +220,16 @@ function DriverCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-display text-lg font-bold">{driver.name}</span>
             <Chip tone="accent">Rating {driverRating(driver)}</Chip>
+            <Chip tone="primary">{STAGE_LABELS[driver.stage]}</Chip>
+            {driver.legend && <Chip tone="accent">Legende</Chip>}
           </div>
           <div className="text-xs text-muted-foreground">
             {driver.age} Jahre · {driver.nationality} · Marktwert {money(driver.marketValue)} · Gehalt{" "}
             {money(driver.salary)}/Saison
             {owned && ` · Vertrag ${driver.contractSeasons} Saison(s)`}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {driver.traits.personality} · Höhepunkt {driver.peakAge} J. · Form {Math.round(driver.form)}
           </div>
         </div>
       </div>
@@ -240,6 +245,32 @@ function DriverCard({
           </div>
         ))}
       </div>
+
+      <div className="mt-3 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        {Object.entries(TRAIT_LABELS).map(([k, label]) => {
+          const v = (driver.traits as unknown as Record<string, number>)[k] ?? 0;
+          return (
+            <div key={k}>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{label}</span>
+                <span>{Math.round(v)}</span>
+              </div>
+              <Bar value={v} tone="muted" />
+            </div>
+          );
+        })}
+      </div>
+
+      {(driver.rivalIds.length > 0 || driver.friendIds.length > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1 text-xs text-muted-foreground">
+          {driver.rivalIds.slice(0, 3).map((id) => (
+            <span key={id} className="rounded bg-destructive/20 px-2 py-0.5">Rivale: {state.drivers[id]?.name}</span>
+          ))}
+          {driver.friendIds.slice(0, 3).map((id) => (
+            <span key={id} className="rounded bg-accent/20 px-2 py-0.5">Freund: {state.drivers[id]?.name}</span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         {owned ? (
