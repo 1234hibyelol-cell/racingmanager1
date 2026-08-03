@@ -7,6 +7,8 @@ import {
   TRACKS,
 } from "@/game/data";
 import {
+import {
+  STAGE_LABELS,
   buildingCost,
   carPerformance,
   carReliability,
