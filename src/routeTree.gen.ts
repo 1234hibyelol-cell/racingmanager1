@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedOnlineRouteImport } from './routes/_authenticated/online'
+import { Route as AuthenticatedRaceRaceIdRouteImport } from './routes/_authenticated/race.$raceId'
 import { Route as ApiPublicHooksTickRouteImport } from './routes/api/public/hooks/tick'
 
 const IndexRoute = IndexRouteImport.update({
@@ -34,6 +35,11 @@ const AuthenticatedOnlineRoute = AuthenticatedOnlineRouteImport.update({
   path: '/online',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRaceRaceIdRoute = AuthenticatedRaceRaceIdRouteImport.update({
+  id: '/race/$raceId',
+  path: '/race/$raceId',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicHooksTickRoute = ApiPublicHooksTickRouteImport.update({
   id: '/api/public/hooks/tick',
   path: '/api/public/hooks/tick',
@@ -44,12 +50,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/online': typeof AuthenticatedOnlineRoute
+  '/race/$raceId': typeof AuthenticatedRaceRaceIdRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/online': typeof AuthenticatedOnlineRoute
+  '/race/$raceId': typeof AuthenticatedRaceRaceIdRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRoutesById {
@@ -58,19 +66,22 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/online': typeof AuthenticatedOnlineRoute
+  '/_authenticated/race/$raceId': typeof AuthenticatedRaceRaceIdRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/online' | '/api/public/hooks/tick'
+  fullPaths:
+    '/' | '/auth' | '/online' | '/race/$raceId' | '/api/public/hooks/tick'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/online' | '/api/public/hooks/tick'
+  to: '/' | '/auth' | '/online' | '/race/$raceId' | '/api/public/hooks/tick'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/online'
+    | '/_authenticated/race/$raceId'
     | '/api/public/hooks/tick'
   fileRoutesById: FileRoutesById
 }
@@ -111,6 +122,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnlineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/race/$raceId': {
+      id: '/_authenticated/race/$raceId'
+      path: '/race/$raceId'
+      fullPath: '/race/$raceId'
+      preLoaderRoute: typeof AuthenticatedRaceRaceIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/hooks/tick': {
       id: '/api/public/hooks/tick'
       path: '/api/public/hooks/tick'
@@ -123,10 +141,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedOnlineRoute: typeof AuthenticatedOnlineRoute
+  AuthenticatedRaceRaceIdRoute: typeof AuthenticatedRaceRaceIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOnlineRoute: AuthenticatedOnlineRoute,
+  AuthenticatedRaceRaceIdRoute: AuthenticatedRaceRaceIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
