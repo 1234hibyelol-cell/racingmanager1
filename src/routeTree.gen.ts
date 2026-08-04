@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ApiPublicHooksTickRouteImport } from './routes/api/public/hooks/tick'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksTickRoute = ApiPublicHooksTickRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicHooksTickRoute = ApiPublicHooksTickRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/api/public/hooks/tick': typeof ApiPublicHooksTickRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/hooks/tick'
+  fullPaths: '/' | '/auth' | '/api/public/hooks/tick'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/hooks/tick'
-  id: '__root__' | '/' | '/api/public/hooks/tick'
+  to: '/' | '/auth' | '/api/public/hooks/tick'
+  id: '__root__' | '/' | '/auth' | '/api/public/hooks/tick'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   ApiPublicHooksTickRoute: typeof ApiPublicHooksTickRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/tick': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   ApiPublicHooksTickRoute: ApiPublicHooksTickRoute,
 }
 export const routeTree = rootRouteImport
