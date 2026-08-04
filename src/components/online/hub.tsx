@@ -130,16 +130,18 @@ export function OnlineHub() {
     void qc.invalidateQueries({ queryKey: ["online-standings"] });
   };
 
-  const run = <T,>(fn: (arg: T) => Promise<unknown>, ok: string) =>
-    async (arg: T) => {
+  const run =
+    <A extends unknown[]>(fn: (...args: A) => Promise<unknown>, ok: string) =>
+    async (...args: A) => {
       try {
-        await fn(arg);
+        await fn(...args);
         toast.success(ok);
         invalidateAll();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Aktion fehlgeschlagen");
       }
     };
+
 
   const joinFn = useServerFn(joinLeague);
   const hqFn = useServerFn(upgradeHq);
