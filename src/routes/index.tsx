@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AdminScreen } from "@/components/game/admin";
 import { LoadScreen, MainMenu, NewGameScreen, SettingsScreen } from "@/components/game/menus";
 import { RaceScreen } from "@/components/game/race";
