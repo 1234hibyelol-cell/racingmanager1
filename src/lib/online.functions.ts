@@ -100,11 +100,11 @@ export const unlockResearch = createServerFn({ method: "POST" })
     const node = RESEARCH_NODES.find((n) => n.id === data.nodeId);
     if (!node) throw new Error("Unbekannter Forschungsknoten.");
     const research = { ...(team.research ?? {}) } as Record<string, any>;
-    const unlocked: string[] = Array.isArray(research.unlocked) ? research.unlocked : [];
+    const unlocked: string[] = Array.isArray(research["unlocked"]) ? research["unlocked"] : [];
     if (unlocked.includes(node.id)) throw new Error("Bereits erforscht.");
     if (node.requires && !unlocked.includes(node.requires)) throw new Error("Voraussetzung fehlt.");
     if (team.budget < node.cost) throw new Error("Budget reicht nicht.");
-    research.unlocked = [...unlocked, node.id];
+    research["unlocked"] = [...unlocked, node.id];
     research[node.branch] = Number(research[node.branch] ?? 0) + node.gain;
     await db.from("teams").update({ research, budget: team.budget - node.cost }).eq("id", team.id);
     return { ok: true };
