@@ -145,7 +145,9 @@ function Shell() {
           <Chip tone="primary">Ruf {state.team.reputation}</Chip>
           <Chip>{WEATHER_LABELS[state.weather.kind].icon} {state.weather.temperature}°C</Chip>
           {state.media.pending.length > 0 && <Chip tone="accent">{state.media.pending.length} Medien</Chip>}
+          <Link to="/online"><Button variant="accent">Online-Liga</Button></Link>
           <Button variant="ghost" onClick={() => save(1)}>Speichern</Button>
+
           <Button variant="ghost" onClick={() => setScreen("load")}>Slots</Button>
           <Button variant="ghost" onClick={() => setScreen("settings")}>⚙</Button>
           <Button variant="ghost" onClick={() => setScreen("menu")}>Menü</Button>
