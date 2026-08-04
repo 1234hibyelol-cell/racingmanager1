@@ -96,13 +96,13 @@ function LiveRace() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Status" value={r.status === "running" ? "Live" : r.status === "finished" ? "Beendet" : "Geplant"} hint={`Runde ${r.current_lap}/${r.laps}`} />
         <Stat label="Wetter" value={String(r.weather ?? "sun")} hint={`Safety Car: ${r.safety_car ? "aktiv" : "nein"}`} />
-        <Stat label="Strecke" value={track.name} hint={`${track.country} · ${track.lengthKm} km`} />
+        <Stat label="Strecke" value={track.name} hint={`${track.country} · ${track.laps} Runden`} />
         <Stat label="Dein Team" value={race.data?.myTeam?.name ?? "—"} hint={mine ? `P${mine.position ?? "-"} · Reifen ${Math.round(100 - (mine.tyre_wear ?? 0))}%` : "nicht am Start"} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Streckenkarte">
-          <svg viewBox="0 0 200 120" className="w-full">
+          <svg viewBox="0 0 320 180" className="w-full">
             <path d={track.path} fill="none" stroke="hsl(var(--border))" strokeWidth="6" strokeLinecap="round" />
             <path
               d={track.path}
