@@ -25,18 +25,47 @@ async function ownTeam(db: any, userId: string) {
   return data;
 }
 
+export const createOnlineLeague = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string }) => z.object({ name: z.string().trim().min(3).max(40) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const db = await admin();
+    const { count } = await db()
+      ? { count: 0 }
+      : { count: 0 };
+    void count;
+    const { data: mine } = await db.from("leagues").select("id").eq("created_by", context.userId);
+    if ((mine ?? []).length >= 3) throw new Error("Du hast bereits 3 Ligen erstellt.");
+    const { createLeague } = await import("@/lib/online-sim.server");
+    const leagueId = await createLeague(data.name, context.userId);
+    return { leagueId };
+  });
+
 export const joinLeague = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { teamName: string; color: string }) =>
-    z.object({ teamName: z.string().trim().min(3).max(28), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }).parse(input),
+  .inputValidator((input: { teamName: string; color: string; leagueId?: string }) =>
+    z
+      .object({
+        teamName: z.string().trim().min(3).max(28),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        leagueId: z.string().uuid().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const db = await admin();
     const { data: existing } = await db.from("teams").select("id,league_id").eq("user_id", context.userId).maybeSingle();
     if (existing) return { teamId: existing.id, leagueId: existing.league_id };
 
-    const { findOpenLeague, makeDriver } = await import("@/lib/online-sim.server");
-    const leagueId = await findOpenLeague();
+    const { findOpenLeague, fillLeague, makeDriver } = await import("@/lib/online-sim.server");
+    let leagueId = data.leagueId;
+    if (leagueId) {
+      const { data: league } = await db.from("leagues").select("id").eq("id", leagueId).maybeSingle();
+      if (!league) throw new Error("Liga nicht gefunden.");
+      await fillLeague(leagueId);
+    } else {
+      leagueId = await findOpenLeague();
+    }
     const { data: bot } = await db
       .from("teams")
       .select("id")
@@ -44,7 +73,7 @@ export const joinLeague = createServerFn({ method: "POST" })
       .eq("is_bot", true)
       .limit(1)
       .maybeSingle();
-    if (!bot) throw new Error("Liga ist voll, bitte erneut versuchen.");
+    if (!bot) throw new Error("Liga ist voll, bitte eine andere Liga wählen.");
 
     const { data: team, error } = await db
       .from("teams")
@@ -62,6 +91,15 @@ export const joinLeague = createServerFn({ method: "POST" })
     if (error) throw error;
     return { teamId: team.id, leagueId: team.league_id };
   });
+
+/** Manueller Anstoß der Server-Simulation (falls der Zeitplan gerade nachhängt). */
+export const tickNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { runTick } = await import("@/lib/online-sim.server");
+    return await runTick();
+  });
+
 
 export const setStrategy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
