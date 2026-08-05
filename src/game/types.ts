@@ -134,13 +134,19 @@ export interface Sponsor {
   seasons: number;
   requirement: SponsorRequirement;
   reward: number;
+  tier: SponsorTier;
+  minReputation: number;
+  minWins: number;
 }
+
+export type SponsorTier = "regional" | "solide" | "premium" | "global";
 
 export interface SponsorRequirement {
   type: "top10" | "win" | "points";
   value: number;
   label: string;
 }
+
 
 /* ---------- Personal ---------- */
 export type StaffRole = "engineer" | "mechanic" | "strategist" | "designer";

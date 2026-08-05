@@ -77,14 +77,15 @@ export async function fillLeague(leagueId: string) {
 }
 
 /** Neue Liga anlegen und mit KI-Teams füllen. */
-export async function createLeague(): Promise<string> {
+export async function createLeague(name?: string, createdBy?: string | null): Promise<string> {
   const { count } = await db().from("leagues").select("id", { count: "exact", head: true });
   const idx = (count ?? 0) + 1;
   const { data, error } = await db()
     .from("leagues")
     .insert({
-      name: `Legends Grid Liga ${idx}`,
+      name: name?.trim() || `Legends Grid Liga ${idx}`,
       tier: 1,
+      created_by: createdBy ?? null,
       next_race_at: new Date(Date.now() + 10 * 60_000).toISOString(),
     })
     .select("id")
@@ -93,6 +94,7 @@ export async function createLeague(): Promise<string> {
   await fillLeague(data.id);
   return data.id as string;
 }
+
 
 /** Liga mit freiem Platz finden oder neue anlegen. */
 export async function findOpenLeague(): Promise<string> {

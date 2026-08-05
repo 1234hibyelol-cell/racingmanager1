@@ -10,6 +10,8 @@ import {
   createEvent,
   createNewGame,
   createSponsor,
+  INVESTOR_MAX,
+  investorRequirement,
   createStaff,
   clamp,
   devCost,
@@ -84,6 +86,7 @@ export type Screen =
   | "events"
   | "world"
   | "profile"
+  | "shop"
   | "premium"
   | "admin";
 
@@ -274,12 +277,18 @@ export function useGameEngine() {
         patch((s) => {
           const sp = s.availableSponsors.find((x) => x.id === id);
           if (!sp) return;
-          if (s.team.sponsorIds.length >= 3) return notify("Maximal 3 Sponsoren.") as undefined;
+          if (s.team.sponsorIds.includes(id)) return;
+          if (s.team.sponsorIds.length >= 3) return notify("Maximal 3 Sponsoren gleichzeitig.") as undefined;
+          if (s.team.reputation < sp.minReputation)
+            return notify(`${sp.name} verlangt Ruf ${sp.minReputation} (aktuell ${s.team.reputation}).`) as undefined;
+          if (s.team.stats.wins < sp.minWins)
+            return notify(`${sp.name} verlangt ${sp.minWins} Siege (aktuell ${s.team.stats.wins}).`) as undefined;
           s.team.sponsorIds.push(id);
           s.team.money += sp.signingBonus;
           notify(`${sp.name} unterschreibt (${sp.signingBonus.toLocaleString("de-DE")} € Bonus).`);
         });
       },
+
       runTraining(skip = false) {
         patch((s) => {
           if (s.season.trainingDone) return;
@@ -488,14 +497,25 @@ export function useGameEngine() {
         patch((s) => {
           const f = s.team.finance;
           if (delta > 0) {
-            const cost = field === "investors" ? 0 : 500_000;
-            if (cost && !spend(s, cost)) return notify("Nicht genug Budget.") as undefined;
-            if (field === "investors") s.team.money += 2_000_000;
+            if (field === "investors") {
+              if (f.investors >= INVESTOR_MAX) return notify("Maximal 3 Investoren – der Rest gehört dir.") as undefined;
+              const need = investorRequirement(f.investors);
+              if (s.team.reputation < need.reputation)
+                return notify(`Investor verlangt Ruf ${need.reputation} (aktuell ${s.team.reputation}).`) as undefined;
+              if (s.team.stats.podiums < need.podiums)
+                return notify(`Investor verlangt ${need.podiums} Podien (aktuell ${s.team.stats.podiums}).`) as undefined;
+              s.team.money += need.capital;
+              f.investors += 1;
+              notify(`Investor aufgenommen: +${need.capital.toLocaleString("de-DE")} €.`);
+              return;
+            }
+            if (!spend(s, 500_000)) return notify("Nicht genug Budget.") as undefined;
           }
           f[field] = Math.max(0, f[field] + delta);
           notify("Wirtschaftsplan angepasst.");
         });
       },
+
       enterEvent(id: string) {
         if (!state) return;
         patch((s) => {

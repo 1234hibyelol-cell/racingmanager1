@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AdminScreen } from "@/components/game/admin";
-import { LoadScreen, MainMenu, NewGameScreen, SettingsScreen } from "@/components/game/menus";
+import { LoadScreen, MainMenu, NewGameScreen, SettingsScreen, ShopScreen } from "@/components/game/menus";
 import { RaceScreen } from "@/components/game/race";
 import { Button, Chip } from "@/components/game/ui";
 import {
@@ -22,7 +22,6 @@ import {
   EventsScreen,
   FinanceScreen,
   MediaScreen,
-  PremiumScreen,
   ProfileScreen,
   StaffScreen,
   WorldScreen,
@@ -107,7 +106,7 @@ const NAV_GROUPS: { group: string; items: { id: Screen; label: string }[] }[] = 
       { id: "media", label: "Medien" },
       { id: "stats", label: "Statistik" },
       { id: "profile", label: "Profil" },
-      { id: "premium", label: "Premium" },
+      { id: "shop", label: "Shop" },
     ],
   },
 ];
@@ -120,6 +119,7 @@ function Shell() {
   if (screen === "load") return <LoadScreen />;
   if (screen === "settings") return <SettingsScreen />;
   if (screen === "admin") return <AdminScreen />;
+  if (screen === "shop") return <ShopScreen />;
   if (!state) return <MainMenu />;
 
   return (
@@ -193,7 +193,7 @@ function Shell() {
       {screen === "events" && <EventsScreen />}
       {screen === "world" && <WorldScreen />}
       {screen === "profile" && <ProfileScreen />}
-      {screen === "premium" && <PremiumScreen />}
+
     </div>
   );
 }

@@ -1,10 +1,12 @@
 // Hauptmenü, Karriere-Erstellung, Laden, Einstellungen.
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { DIFFICULTY, COUNTRIES, TEAM_STYLES } from "@/game/data";
 import { money } from "@/game/engine";
 import { AUTO_SLOT, SLOT_COUNT } from "@/game/save";
 import { useGame } from "@/game/store";
 import type { Difficulty, Team } from "@/game/types";
+import { PremiumScreen } from "./views2";
 import { Button, Chip, Field, Panel, inputClass } from "./ui";
 
 const LOGOS = ["🏁", "⚡", "🦅", "🛞", "🔥", "🐺", "★", "🛡️"];
@@ -16,6 +18,7 @@ export function MainMenu() {
     { label: "Neues Spiel", screen: "newgame", hint: "Team gründen & Karriere starten" },
     { label: "Spiel laden", screen: "load", hint: `${saves.length} Spielstände` },
     { label: "Karriere", screen: state ? "dashboard" : "load", hint: state ? "Weiterspielen" : "Spielstand nötig" },
+    { label: "Shop", screen: "shop", hint: "Premium-Pakete & Boosts" },
     { label: "Einstellungen", screen: "settings", hint: "Animationen, Autosave" },
     { label: "Entwickler-Menü", screen: "admin", hint: "Passwortgeschützt" },
   ];
@@ -30,6 +33,18 @@ export function MainMenu() {
           Gründe deinen Rennstall, entwickle das Auto, forsche, verpflichte Fahrer und gewinne die Meisterschaft.
         </p>
       </div>
+
+      <div className="panel stripe-top mb-4 p-4 pt-5">
+        <div className="label-xs">Multiplayer</div>
+        <div className="font-display text-lg font-bold uppercase tracking-wide">Live-Liga</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Eigene Liga erstellen oder einer bestehenden Liga mit 20 Teams beitreten – stündliche Rennen, live simuliert.
+        </p>
+        <Link to="/online" className="mt-3 inline-block">
+          <Button variant="accent">Multiplayer öffnen</Button>
+        </Link>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((it) => (
           <button
@@ -45,6 +60,32 @@ export function MainMenu() {
     </div>
   );
 }
+
+export function ShopScreen() {
+  const { state, setScreen } = useGame();
+  return (
+    <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-3xl font-black uppercase">Shop</h2>
+        <Button variant="ghost" onClick={() => setScreen(state ? "dashboard" : "menu")}>Zurück</Button>
+      </div>
+      {state ? (
+        <PremiumScreen />
+      ) : (
+        <Panel title="Karriere nötig">
+          <p className="text-sm text-muted-foreground">
+            Der Shop wirkt auf deine Karriere. Starte ein neues Spiel oder lade einen Spielstand.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button onClick={() => setScreen("newgame")}>Neues Spiel</Button>
+            <Button variant="ghost" onClick={() => setScreen("load")}>Spiel laden</Button>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
 
 export function NewGameScreen() {
   const { newGame, setScreen } = useGame();

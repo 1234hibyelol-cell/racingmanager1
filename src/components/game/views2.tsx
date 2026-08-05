@@ -22,6 +22,8 @@ import {
   STAGE_LABELS,
   devCost,
   driverRating,
+  INVESTOR_MAX,
+  investorRequirement,
   money,
   staffCosts,
   staffPower,
@@ -582,11 +584,24 @@ export function FinanceScreen() {
         {row("Ticketing", "ticketLevel", "Einnahmen aus Heimrennen & Hospitality")}
         {row("Marketing", "marketing", "Mehr Sponsorenwert, höhere laufende Kosten")}
         {row("Fabrikausbau", "factory", "Effizientere Produktion, geringerer Verschleiß")}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="accent" onClick={() => actions.finance("investors", 1)}>
-            Investor aufnehmen (+{money(2_000_000)})
-          </Button>
-        </div>
+        {(() => {
+          const maxed = f.investors >= INVESTOR_MAX;
+          const need = investorRequirement(f.investors);
+          const ok = s.team.reputation >= need.reputation && s.team.stats.podiums >= need.podiums;
+          return (
+            <div className="mt-3 space-y-2">
+              <Button variant="accent" disabled={maxed || !ok} onClick={() => actions.finance("investors", 1)}>
+                {maxed ? "Alle Investoren aufgenommen" : `Investor aufnehmen (+${money(need.capital)})`}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {maxed
+                  ? `Maximal ${INVESTOR_MAX} Investoren – mehr Anteile gibst du nicht ab.`
+                  : `Bedingungen: Ruf ≥ ${need.reputation} (aktuell ${s.team.reputation}) · Podien ≥ ${need.podiums} (aktuell ${s.team.stats.podiums}).`}
+              </p>
+            </div>
+          );
+        })()}
+
       </Panel>
 
       <Panel title={r ? `Finanzbericht Runde ${r.round + 1}` : "Finanzbericht"}>

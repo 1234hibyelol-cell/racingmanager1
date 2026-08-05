@@ -13,6 +13,7 @@ import {
   carReliability,
   driverRating,
   money,
+  SPONSOR_TIER_LABELS,
   researchCost,
   trainingCost,
   upgradeCost,
@@ -460,9 +461,10 @@ export function SponsorsScreen() {
   const { state, actions } = useGame();
   if (!state) return null;
   const s = state;
+  const slotsLeft = 3 - s.team.sponsorIds.length;
   return (
     <div className="space-y-4">
-      <Panel title="Aktive Sponsoren">
+      <Panel title={`Aktive Sponsoren · ${s.team.sponsorIds.length}/3`}>
         {s.team.sponsorIds.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Verträge.</p>}
         <div className="grid gap-2 sm:grid-cols-3">
           {s.team.sponsorIds.map((id) => {
@@ -477,25 +479,47 @@ export function SponsorsScreen() {
             );
           })}
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Maximal 3 Verträge gleichzeitig · {slotsLeft} Platz/Plätze frei. Der Markt wechselt nach den Rennen: Angebote
+          verschwinden, neue – bessere oder schlechtere – kommen dazu.
+        </p>
       </Panel>
       <div className="grid gap-3 lg:grid-cols-2">
         {s.availableSponsors
           .filter((sp) => !s.team.sponsorIds.includes(sp.id))
-          .map((sp) => (
-            <Panel key={sp.id} title={sp.name}>
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>Antrittsbonus: {money(sp.signingBonus)}</li>
-                <li>Pro Rennen: {money(sp.perRace)}</li>
-                <li>Saisonziel: {sp.requirement.label}</li>
-                <li>Zielbonus: {money(sp.reward)}</li>
-              </ul>
-              <Button className="mt-3" onClick={() => actions.signSponsor(sp.id)}>Vertrag unterschreiben</Button>
-            </Panel>
-          ))}
+          .map((sp) => {
+            const repOk = s.team.reputation >= sp.minReputation;
+            const winOk = s.team.stats.wins >= sp.minWins;
+            const locked = !repOk || !winOk || slotsLeft <= 0;
+            return (
+              <Panel key={sp.id} title={sp.name}>
+                <div className="mb-2 flex flex-wrap gap-2">
+                  <Chip tone={sp.tier === "global" ? "primary" : sp.tier === "regional" ? undefined : "accent"}>
+                    {SPONSOR_TIER_LABELS[sp.tier]}
+                  </Chip>
+                  {!repOk && <Chip>Ruf {sp.minReputation} nötig</Chip>}
+                  {!winOk && <Chip>{sp.minWins} Siege nötig</Chip>}
+                </div>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>Antrittsbonus: {money(sp.signingBonus)}</li>
+                  <li>Pro Rennen: {money(sp.perRace)}</li>
+                  <li>Saisonziel: {sp.requirement.label}</li>
+                  <li>Zielbonus: {money(sp.reward)}</li>
+                  <li>
+                    Bedingungen: Ruf ≥ {sp.minReputation} · Siege ≥ {sp.minWins}
+                  </li>
+                </ul>
+                <Button className="mt-3" disabled={locked} onClick={() => actions.signSponsor(sp.id)}>
+                  {slotsLeft <= 0 ? "Keine Slots frei" : locked ? "Bedingungen offen" : "Vertrag unterschreiben"}
+                </Button>
+              </Panel>
+            );
+          })}
       </div>
     </div>
   );
 }
+
 
 export function SeasonScreen() {
   const { state } = useGame();
