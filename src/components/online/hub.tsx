@@ -147,6 +147,8 @@ export function OnlineHub() {
 
 
   const joinFn = useServerFn(joinLeague);
+  const createLeagueFn = useServerFn(createOnlineLeague);
+  const tickFn = useServerFn(tickNow);
   const hqFn = useServerFn(upgradeHq);
   const researchFn = useServerFn(unlockResearch);
   const driverFn = useServerFn(trainDriver);
@@ -154,6 +156,7 @@ export function OnlineHub() {
   const sponsorFn = useServerFn(signSponsor);
   const strategyFn = useServerFn(setStrategy);
   const renameFn = useServerFn(renameProfile);
+
 
   const signOut = async () => {
     await qc.cancelQueries();
