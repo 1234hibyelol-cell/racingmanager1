@@ -23,17 +23,20 @@ import {
 } from "@/game/online/config";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  createOnlineLeague,
   joinLeague,
   requestFriend,
   renameProfile,
   respondFriend,
   setStrategy,
   signSponsor,
+  tickNow,
   trainDriver,
   trainStaff,
   unlockResearch,
   upgradeHq,
 } from "@/lib/online.functions";
+
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const db = supabase as any;
