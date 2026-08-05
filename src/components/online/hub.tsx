@@ -479,45 +479,128 @@ function countdown(iso?: string | null) {
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 }
 
-function JoinCard({ onJoin }: { onJoin: (v: { teamName: string; color: string }) => Promise<void> }) {
+function LeagueBrowser({
+  onJoin,
+  onCreate,
+}: {
+  onJoin: (v: { teamName: string; color: string; leagueId?: string }) => Promise<void>;
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const qc = useQueryClient();
   const [teamName, setName] = useState("");
   const [color, setColor] = useState("#e11d48");
+  const [leagueName, setLeagueName] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const leagues = useQuery({
+    queryKey: ["online-leagues"],
+    refetchInterval: 20_000,
+    queryFn: async () => {
+      const { data: rows } = await db.from("leagues").select("*").order("created_at", { ascending: true });
+      const list = (rows ?? []) as any[];
+      const out: any[] = [];
+      for (const l of list) {
+        const { count: free } = await db
+          .from("teams")
+          .select("id", { count: "exact", head: true })
+          .eq("league_id", l.id)
+          .eq("is_bot", true);
+        const { count: players } = await db
+          .from("teams")
+          .select("id", { count: "exact", head: true })
+          .eq("league_id", l.id)
+          .eq("is_bot", false);
+        out.push({ ...l, free: free ?? 0, players: players ?? 0 });
+      }
+      return out;
+    },
+  });
+
+  const nameOk = teamName.trim().length >= 3;
+
+  const doJoin = async (leagueId?: string) => {
+    setBusy(true);
+    await onJoin({ teamName: teamName.trim(), color, ...(leagueId ? { leagueId } : {}) });
+    setBusy(false);
+  };
+
   return (
-    <Panel title="Liga beitreten">
-      <p className="mb-3 text-sm text-muted-foreground">
-        Du übernimmst ein Team in einer Liga mit 20 Teams. Rennen starten automatisch jede Stunde und werden serverseitig
-        simuliert – du kannst live eingreifen.
-      </p>
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="label-xs" htmlFor="tn">Teamname</label>
-          <input
-            id="tn"
-            value={teamName}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-lg border border-border bg-secondary/40 px-3 py-2"
-          />
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="Dein Online-Team">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Lege zuerst deinen Rennstall fest. Danach erstellst du eine eigene Liga oder trittst einer bestehenden Liga
+          bei – jede Liga hat 20 Teams, Rennen starten automatisch jede Stunde und laufen serverseitig.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="label-xs" htmlFor="tn">Teamname</label>
+            <input
+              id="tn"
+              value={teamName}
+              onChange={(e) => setName(e.target.value)}
+              className="block rounded-lg border border-border bg-secondary/40 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="label-xs" htmlFor="tc">Teamfarbe</label>
+            <input id="tc" type="color" value={color} onChange={(e) => setColor(e.target.value)} className="block h-10 w-16 rounded-lg" />
+          </div>
         </div>
-        <div>
-          <label className="label-xs" htmlFor="tc">Teamfarbe</label>
-          <input id="tc" type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-16 rounded-lg" />
+        <div className="mt-4 border-t border-border pt-3">
+          <label className="label-xs" htmlFor="ln">Eigene Liga erstellen</label>
+          <div className="mt-1 flex flex-wrap items-end gap-2">
+            <input
+              id="ln"
+              value={leagueName}
+              onChange={(e) => setLeagueName(e.target.value)}
+              placeholder="Ligaename"
+              className="rounded-lg border border-border bg-secondary/40 px-3 py-2"
+            />
+            <Button
+              variant="accent"
+              disabled={leagueName.trim().length < 3 || busy}
+              onClick={async () => {
+                setBusy(true);
+                await onCreate(leagueName.trim());
+                setLeagueName("");
+                await qc.invalidateQueries({ queryKey: ["online-leagues"] });
+                setBusy(false);
+              }}
+            >
+              Liga erstellen
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Die neue Liga wird mit KI-Teams gefüllt; du trittst ihr anschließend unten bei (max. 3 eigene Ligen).
+          </p>
         </div>
-        <Button
-          variant="primary"
-          disabled={teamName.trim().length < 3 || busy}
-          onClick={async () => {
-            setBusy(true);
-            await onJoin({ teamName: teamName.trim(), color });
-            setBusy(false);
-          }}
-        >
-          Team registrieren
-        </Button>
-      </div>
-    </Panel>
+      </Panel>
+
+      <Panel title="Ligen">
+        {!nameOk && <p className="mb-2 text-xs text-accent">Zuerst einen Teamnamen (min. 3 Zeichen) eingeben.</p>}
+        {(leagues.data ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">Noch keine Liga vorhanden – erstelle die erste.</p>
+        )}
+        <ul className="space-y-2 text-sm">
+          {(leagues.data ?? []).map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+              <span>
+                <span className="font-display font-bold">{l.name}</span>
+                <span className="block text-xs text-muted-foreground">
+                  Saison {l.season} · Lauf {l.round} · {l.players} Spieler · {l.free} freie Plätze
+                </span>
+              </span>
+              <Button variant="primary" disabled={!nameOk || busy || l.free <= 0} onClick={() => doJoin(l.id)}>
+                {l.free > 0 ? "Beitreten" : "Voll"}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
   );
 }
+
 
 function RenameForm({ current, onSave }: { current: string; onSave: (v: string) => Promise<void> }) {
   const [value, setValue] = useState(current);
