@@ -553,7 +553,7 @@ function LeagueBrowser({
               id="ln"
               value={leagueName}
               onChange={(e) => setLeagueName(e.target.value)}
-              placeholder="Ligaename"
+              placeholder="Liganame"
               className="rounded-lg border border-border bg-secondary/40 px-3 py-2"
             />
             <Button
