@@ -277,6 +277,20 @@ export function devCost(state: GameState, action: DevAction): number {
 }
 
 /* ---------- Sponsoren ---------- */
+const SPONSOR_TIERS: { tier: SponsorTier; label: string; factor: number; minReputation: number; minWins: number; weight: number }[] = [
+  { tier: "regional", label: "Regional", factor: 0.55, minReputation: 0, minWins: 0, weight: 4 },
+  { tier: "solide", label: "Solide", factor: 1, minReputation: 25, minWins: 0, weight: 3 },
+  { tier: "premium", label: "Premium", factor: 1.7, minReputation: 50, minWins: 1, weight: 2 },
+  { tier: "global", label: "Global", factor: 2.6, minReputation: 70, minWins: 3, weight: 1 },
+];
+
+export const SPONSOR_TIER_LABELS: Record<SponsorTier, string> = {
+  regional: "Regional",
+  solide: "Solide",
+  premium: "Premium",
+  global: "Global",
+};
+
 export function createSponsor(): Sponsor {
   const reqRoll = rndInt(0, 2);
   const requirement =
@@ -285,7 +299,9 @@ export function createSponsor(): Sponsor {
       : reqRoll === 1
         ? { type: "win" as const, value: 1, label: "Mindestens 1 Saisonsieg" }
         : { type: "points" as const, value: rndInt(40, 120), label: `Punkte in der Saison sammeln` };
-  const tier = rnd(0.7, 1.6);
+  const pool = SPONSOR_TIERS.flatMap((t) => Array.from({ length: t.weight }, () => t));
+  const tierInfo = pick(pool);
+  const tier = rnd(0.85, 1.2) * tierInfo.factor;
   return {
     id: uid("spn"),
     name: pick(SPONSOR_NAMES),
@@ -294,8 +310,12 @@ export function createSponsor(): Sponsor {
     seasons: 1,
     requirement,
     reward: Math.round(900_000 * tier),
+    tier: tierInfo.tier,
+    minReputation: tierInfo.minReputation,
+    minWins: tierInfo.minWins,
   };
 }
+
 
 /* ---------- Strecken & Wetter ---------- */
 export function allTracks(state: GameState | null): TrackDef[] {
