@@ -86,6 +86,7 @@ export type Screen =
   | "events"
   | "world"
   | "profile"
+  | "shop"
   | "premium"
   | "admin";
 
