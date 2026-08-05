@@ -22,6 +22,8 @@ import {
   STAGE_LABELS,
   devCost,
   driverRating,
+  INVESTOR_MAX,
+  investorRequirement,
   money,
   staffCosts,
   staffPower,
