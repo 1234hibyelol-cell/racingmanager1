@@ -274,12 +274,18 @@ export function useGameEngine() {
         patch((s) => {
           const sp = s.availableSponsors.find((x) => x.id === id);
           if (!sp) return;
-          if (s.team.sponsorIds.length >= 3) return notify("Maximal 3 Sponsoren.") as undefined;
+          if (s.team.sponsorIds.includes(id)) return;
+          if (s.team.sponsorIds.length >= 3) return notify("Maximal 3 Sponsoren gleichzeitig.") as undefined;
+          if (s.team.reputation < sp.minReputation)
+            return notify(`${sp.name} verlangt Ruf ${sp.minReputation} (aktuell ${s.team.reputation}).`) as undefined;
+          if (s.team.stats.wins < sp.minWins)
+            return notify(`${sp.name} verlangt ${sp.minWins} Siege (aktuell ${s.team.stats.wins}).`) as undefined;
           s.team.sponsorIds.push(id);
           s.team.money += sp.signingBonus;
           notify(`${sp.name} unterschreibt (${sp.signingBonus.toLocaleString("de-DE")} € Bonus).`);
         });
       },
+
       runTraining(skip = false) {
         patch((s) => {
           if (s.season.trainingDone) return;
