@@ -1,10 +1,12 @@
 // Hauptmenü, Karriere-Erstellung, Laden, Einstellungen.
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { DIFFICULTY, COUNTRIES, TEAM_STYLES } from "@/game/data";
 import { money } from "@/game/engine";
 import { AUTO_SLOT, SLOT_COUNT } from "@/game/save";
 import { useGame } from "@/game/store";
 import type { Difficulty, Team } from "@/game/types";
+import { PremiumScreen } from "./views2";
 import { Button, Chip, Field, Panel, inputClass } from "./ui";
 
 const LOGOS = ["🏁", "⚡", "🦅", "🛞", "🔥", "🐺", "★", "🛡️"];
