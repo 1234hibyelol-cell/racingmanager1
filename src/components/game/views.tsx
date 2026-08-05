@@ -13,6 +13,7 @@ import {
   carReliability,
   driverRating,
   money,
+  SPONSOR_TIER_LABELS,
   researchCost,
   trainingCost,
   upgradeCost,
