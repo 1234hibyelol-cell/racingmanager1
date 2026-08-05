@@ -318,6 +318,19 @@ export function createSponsor(): Sponsor {
 }
 
 
+/* ---------- Investoren ---------- */
+export const INVESTOR_MAX = 3;
+
+/** Bedingungen und Kapital für den nächsten Investor (wird schrittweise anspruchsvoller). */
+export function investorRequirement(current: number): { reputation: number; podiums: number; capital: number } {
+  const steps = [
+    { reputation: 20, podiums: 0, capital: 2_000_000 },
+    { reputation: 45, podiums: 3, capital: 3_000_000 },
+    { reputation: 65, podiums: 8, capital: 4_500_000 },
+  ];
+  return steps[Math.min(current, steps.length - 1)]!;
+}
+
 /* ---------- Strecken & Wetter ---------- */
 export function allTracks(state: GameState | null): TrackDef[] {
   const custom = (state?.customTracks ?? []).map((t) => ({ ...t }) as unknown as TrackDef);

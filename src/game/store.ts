@@ -10,6 +10,8 @@ import {
   createEvent,
   createNewGame,
   createSponsor,
+  INVESTOR_MAX,
+  investorRequirement,
   createStaff,
   clamp,
   devCost,
