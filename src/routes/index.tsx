@@ -22,7 +22,6 @@ import {
   EventsScreen,
   FinanceScreen,
   MediaScreen,
-  PremiumScreen,
   ProfileScreen,
   StaffScreen,
   WorldScreen,
