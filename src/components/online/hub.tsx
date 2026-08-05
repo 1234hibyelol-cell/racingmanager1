@@ -256,10 +256,22 @@ export function OnlineHub() {
                       </Link>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Nächster Start: {countdown(league?.next_race_at)} – Rennen starten automatisch jede Stunde und werden
-                      serverseitig simuliert.
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Nächster Start: {countdown(league?.next_race_at)} – Rennen starten automatisch jede Stunde und werden
+                        serverseitig simuliert.
+                      </p>
+                      <Button
+                        variant="ghost"
+                        onClick={run(async () => {
+                          await tickFn({ data: undefined });
+                          void qc.invalidateQueries({ queryKey: ["online-races"] });
+                        }, "Server-Simulation angestoßen")}
+                      >
+                        Rennstatus jetzt prüfen
+                      </Button>
+                    </div>
+
                   )}
                   <div className="mt-3 space-y-1 text-sm">
                     {(races.data ?? []).map((r) => (
