@@ -42,6 +42,7 @@ import type {
   ResearchKey,
   SeasonEvent,
   Sponsor,
+  SponsorTier,
   Staff,
   StaffRole,
   Strategy,
