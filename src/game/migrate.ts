@@ -99,5 +99,21 @@ export function ensureExpansion(state: GameState): GameState {
   if (!s.customTracks) s.customTracks = [];
   for (const ai of s.aiTeams) if (typeof ai.development !== "number") ai.development = 1;
 
+  /* Sponsorenmarkt: Stufen & Bedingungen nachrüsten */
+  for (const sp of s.availableSponsors ?? []) {
+    if (!sp.tier) {
+      const factor = sp.perRace / 120_000;
+      sp.tier = factor >= 2.2 ? "global" : factor >= 1.4 ? "premium" : factor >= 0.8 ? "solide" : "regional";
+    }
+    if (typeof sp.minReputation !== "number") {
+      sp.minReputation = sp.tier === "global" ? 70 : sp.tier === "premium" ? 50 : sp.tier === "solide" ? 25 : 0;
+    }
+    if (typeof sp.minWins !== "number") {
+      sp.minWins = sp.tier === "global" ? 3 : sp.tier === "premium" ? 1 : 0;
+    }
+  }
+  if (s.team.sponsorIds.length > 3) s.team.sponsorIds = s.team.sponsorIds.slice(0, 3);
+  if (s.team.finance && s.team.finance.investors > 3) s.team.finance.investors = 3;
+
   return s;
 }
