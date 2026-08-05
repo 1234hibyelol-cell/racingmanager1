@@ -30,11 +30,8 @@ export const createOnlineLeague = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => z.object({ name: z.string().trim().min(3).max(40) }).parse(input))
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const { count } = await db()
-      ? { count: 0 }
-      : { count: 0 };
-    void count;
     const { data: mine } = await db.from("leagues").select("id").eq("created_by", context.userId);
+
     if ((mine ?? []).length >= 3) throw new Error("Du hast bereits 3 Ligen erstellt.");
     const { createLeague } = await import("@/lib/online-sim.server");
     const leagueId = await createLeague(data.name, context.userId);
