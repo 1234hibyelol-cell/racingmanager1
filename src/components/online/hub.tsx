@@ -187,7 +187,16 @@ export function OnlineHub() {
         </div>
       </header>
 
-      {!team && <JoinCard onJoin={run(async (v: { teamName: string; color: string }) => joinFn({ data: v }), "Team registriert!")} />}
+      {!team && (
+        <LeagueBrowser
+          onJoin={run(
+            async (v: { teamName: string; color: string; leagueId?: string }) => joinFn({ data: v }),
+            "Team registriert!",
+          )}
+          onCreate={run(async (name: string) => createLeagueFn({ data: { name } }), "Liga erstellt!")}
+        />
+      )}
+
 
       {team && (
         <>
