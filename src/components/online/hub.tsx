@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createOnlineLeague,
   joinLeague,
+  leaveLeague,
+  MAX_LEAGUES_PER_USER,
+  MAX_ONLINE_SPONSOR_DEALS,
   requestFriend,
   renameProfile,
   respondFriend,
@@ -344,7 +347,7 @@ export function OnlineHub() {
                       <Button
                         key={s}
                         variant={team.strategy === s ? "primary" : "ghost"}
-                        onClick={run(async () => strategyFn({ data: { strategy: s } }), "Strategie gespeichert")}
+                        onClick={run(async () => strategyFn({ data: { strategy: s, teamId } }), "Strategie gespeichert")}
                       >
                         {s === "push" ? "Angriff" : s === "normal" ? "Normal" : "Schonen"}
                       </Button>
@@ -384,7 +387,7 @@ export function OnlineHub() {
                       <Button
                         className="mt-2"
                         disabled={level >= HQ_MAX || team.budget < hqCost(level)}
-                        onClick={run(async () => hqFn({ data: { key: k } }), "Ausbau abgeschlossen")}
+                        onClick={run(async () => hqFn({ data: { key: k, teamId } }), "Ausbau abgeschlossen")}
                       >
                         Ausbauen · {money(hqCost(level))}
                       </Button>
@@ -419,7 +422,7 @@ export function OnlineHub() {
                               <Button
                                 className="mt-1"
                                 disabled={locked || team.budget < n.cost}
-                                onClick={run(async () => researchFn({ data: { nodeId: n.id } }), "Forschung abgeschlossen")}
+                                onClick={run(async () => researchFn({ data: { nodeId: n.id, teamId } }), "Forschung abgeschlossen")}
                               >
                                 {locked ? "Gesperrt" : money(n.cost)}
                               </Button>
@@ -451,7 +454,7 @@ export function OnlineHub() {
                     <Button
                       className="mt-2"
                       disabled={team.budget < TRAIN_DRIVER_COST}
-                      onClick={run(async () => driverFn({ data: { index: i } }), "Trainingseinheit absolviert")}
+                      onClick={run(async () => driverFn({ data: { index: i, teamId } }), "Trainingseinheit absolviert")}
                     >
                       Training · {money(TRAIN_DRIVER_COST)}
                     </Button>
@@ -494,7 +497,7 @@ export function OnlineHub() {
                     <Button
                       className="mt-2"
                       disabled={(profile?.rating ?? 1000) < s.minRating}
-                      onClick={run(async () => sponsorFn({ data: { sponsorId: s.id } }), "Vertrag unterschrieben")}
+                      onClick={run(async () => sponsorFn({ data: { sponsorId: s.id, teamId } }), "Vertrag unterschrieben")}
                     >
                       Unterschreiben
                     </Button>
@@ -543,9 +546,11 @@ function countdown(iso?: string | null) {
 function LeagueBrowser({
   onJoin,
   onCreate,
+  joinedLeagueIds,
 }: {
   onJoin: (v: { teamName: string; color: string; leagueId?: string }) => Promise<void>;
   onCreate: (name: string) => Promise<void>;
+  joinedLeagueIds: string[];
 }) {
   const qc = useQueryClient();
   const [teamName, setName] = useState("");
@@ -651,8 +656,12 @@ function LeagueBrowser({
                   Saison {l.season} · Lauf {l.round} · {l.players} Spieler · {l.free} freie Plätze
                 </span>
               </span>
-              <Button variant="primary" disabled={!nameOk || busy || l.free <= 0} onClick={() => doJoin(l.id)}>
-                {l.free > 0 ? "Beitreten" : "Voll"}
+              <Button
+                variant="primary"
+                disabled={!nameOk || busy || l.free <= 0 || joinedLeagueIds.includes(l.id)}
+                onClick={() => doJoin(l.id)}
+              >
+                {joinedLeagueIds.includes(l.id) ? "Dabei" : l.free > 0 ? "Beitreten" : "Voll"}
               </Button>
             </li>
           ))}
