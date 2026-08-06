@@ -141,22 +141,22 @@ export const tickNow = createServerFn({ method: "POST" })
 
 export const setStrategy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { strategy: string }) =>
-    z.object({ strategy: z.enum(["push", "normal", "conserve"]) }).parse(input),
+  .inputValidator((input: { strategy: string; teamId?: string }) =>
+    teamInput.extend({ strategy: z.enum(["push", "normal", "conserve"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     await db.from("teams").update({ strategy: data.strategy }).eq("id", team.id);
     return { ok: true };
   });
 
 export const upgradeHq = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { key: string }) => z.object({ key: z.enum(HQ_KEYS) }).parse(input))
+  .inputValidator((input: { key: string; teamId?: string }) => teamInput.extend({ key: z.enum(HQ_KEYS) }).parse(input))
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     const hq = { ...(team.hq ?? {}) } as Record<string, number>;
     const level = Number(hq[data.key] ?? 1);
     if (level >= HQ_MAX) throw new Error("Maximale Stufe erreicht.");
@@ -169,10 +169,12 @@ export const upgradeHq = createServerFn({ method: "POST" })
 
 export const unlockResearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { nodeId: string }) => z.object({ nodeId: z.string().min(2).max(40) }).parse(input))
+  .inputValidator((input: { nodeId: string; teamId?: string }) =>
+    teamInput.extend({ nodeId: z.string().min(2).max(40) }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     const node = RESEARCH_NODES.find((n) => n.id === data.nodeId);
     if (!node) throw new Error("Unbekannter Forschungsknoten.");
     const research = { ...(team.research ?? {}) } as Record<string, any>;
@@ -188,10 +190,12 @@ export const unlockResearch = createServerFn({ method: "POST" })
 
 export const trainDriver = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { index: number }) => z.object({ index: z.number().int().min(0).max(1) }).parse(input))
+  .inputValidator((input: { index: number; teamId?: string }) =>
+    teamInput.extend({ index: z.number().int().min(0).max(1) }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     if (team.budget < TRAIN_DRIVER_COST) throw new Error("Budget reicht nicht.");
     const drivers = Array.isArray(team.drivers) ? [...team.drivers] : [];
     const d = drivers[data.index];
@@ -209,10 +213,10 @@ export const trainDriver = createServerFn({ method: "POST" })
 
 export const trainStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { role: string }) => z.object({ role: z.enum(STAFF_ROLES) }).parse(input))
+  .inputValidator((input: { role: string; teamId?: string }) => teamInput.extend({ role: z.enum(STAFF_ROLES) }).parse(input))
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     if (team.budget < TRAIN_STAFF_COST) throw new Error("Budget reicht nicht.");
     const staff = { ...(team.staff ?? {}) } as Record<string, number>;
     staff[data.role] = Math.min(99, Number(staff[data.role] ?? 40) + 3);
@@ -222,12 +226,21 @@ export const trainStaff = createServerFn({ method: "POST" })
 
 export const signSponsor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sponsorId: string }) => z.object({ sponsorId: z.string().min(2).max(40) }).parse(input))
+  .inputValidator((input: { sponsorId: string; teamId?: string }) =>
+    teamInput.extend({ sponsorId: z.string().min(2).max(40) }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const team = await ownTeam(db, context.userId);
+    const team = await ownTeam(db, context.userId, data.teamId);
     const sponsor = ONLINE_SPONSORS.find((s) => s.id === data.sponsorId);
     if (!sponsor) throw new Error("Unbekannter Sponsor.");
+
+    const deals = Number(team.sponsor_signings ?? 0);
+    if (deals >= MAX_ONLINE_SPONSOR_DEALS) {
+      throw new Error(`Sponsorenlimit erreicht (${MAX_ONLINE_SPONSOR_DEALS} Verträge pro Saison).`);
+    }
+    if ((team.sponsor ?? {}).id === sponsor.id) throw new Error("Dieser Sponsor ist bereits unter Vertrag.");
+
     const { data: profile } = await db.from("profiles").select("rating").eq("id", context.userId).maybeSingle();
     if ((profile?.rating ?? 1000) < sponsor.minRating) throw new Error("Rating zu niedrig für diesen Sponsor.");
     const marketing = Number((team.hq ?? {}).marketing ?? 1);
@@ -235,10 +248,11 @@ export const signSponsor = createServerFn({ method: "POST" })
       .from("teams")
       .update({
         sponsor: { id: sponsor.id, name: sponsor.name, perRace: sponsor.perRace + marketing * 15_000 },
+        sponsor_signings: deals + 1,
         budget: team.budget + sponsor.signing,
       })
       .eq("id", team.id);
-    return { ok: true };
+    return { ok: true, remaining: MAX_ONLINE_SPONSOR_DEALS - (deals + 1) };
   });
 
 export const sendRaceOrder = createServerFn({ method: "POST" })
