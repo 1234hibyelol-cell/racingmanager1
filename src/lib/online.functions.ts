@@ -19,11 +19,20 @@ async function admin() {
   return supabaseAdmin as any;
 }
 
-async function ownTeam(db: any, userId: string) {
-  const { data } = await db.from("teams").select("*").eq("user_id", userId).maybeSingle();
-  if (!data) throw new Error("Kein Online-Team vorhanden.");
-  return data;
+/** Team des Spielers – optional in einer bestimmten Liga (Mehrfach-Ligen sind erlaubt). */
+async function ownTeam(db: any, userId: string, teamId?: string) {
+  let q = db.from("teams").select("*").eq("user_id", userId);
+  if (teamId) q = q.eq("id", teamId);
+  const { data } = await q.order("created_at", { ascending: true }).limit(1);
+  const team = (data ?? [])[0];
+  if (!team) throw new Error("Kein Online-Team vorhanden.");
+  return team;
 }
+
+const teamInput = z.object({ teamId: z.string().uuid().optional() });
+
+export const MAX_LEAGUES_PER_USER = 5;
+export const MAX_ONLINE_SPONSOR_DEALS = 3;
 
 export const createOnlineLeague = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -51,8 +60,11 @@ export const joinLeague = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = await admin();
-    const { data: existing } = await db.from("teams").select("id,league_id").eq("user_id", context.userId).maybeSingle();
-    if (existing) return { teamId: existing.id, leagueId: existing.league_id };
+    const { data: mine } = await db.from("teams").select("id,league_id").eq("user_id", context.userId);
+    const myTeams = (mine ?? []) as { id: string; league_id: string }[];
+    if (myTeams.length >= MAX_LEAGUES_PER_USER) {
+      throw new Error(`Maximal ${MAX_LEAGUES_PER_USER} Ligen gleichzeitig – verlasse zuerst eine Liga.`);
+    }
 
     const { findOpenLeague, fillLeague, makeDriver } = await import("@/lib/online-sim.server");
     let leagueId = data.leagueId;
@@ -63,6 +75,9 @@ export const joinLeague = createServerFn({ method: "POST" })
     } else {
       leagueId = await findOpenLeague();
     }
+    const already = myTeams.find((t) => t.league_id === leagueId);
+    if (already) return { teamId: already.id, leagueId };
+
     const { data: bot } = await db
       .from("teams")
       .select("id")
@@ -80,6 +95,8 @@ export const joinLeague = createServerFn({ method: "POST" })
         name: data.teamName,
         color: data.color,
         budget: 8_000_000,
+        sponsor_signings: 0,
+        sponsor: { id: null, name: null, perRace: 0 },
         drivers: [makeDriver(62), makeDriver(55)],
       })
       .eq("id", bot.id)
@@ -87,6 +104,30 @@ export const joinLeague = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     return { teamId: team.id, leagueId: team.league_id };
+  });
+
+/** Liga verlassen: der Startplatz wird wieder von einem KI-Team übernommen. */
+export const leaveLeague = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { teamId: string }) => z.object({ teamId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const db = await admin();
+    const team = await ownTeam(db, context.userId, data.teamId);
+    const { makeDriver } = await import("@/lib/online-sim.server");
+    const { error } = await db
+      .from("teams")
+      .update({
+        user_id: null,
+        is_bot: true,
+        name: `KI ${team.name}`.slice(0, 28),
+        strategy: "normal",
+        sponsor_signings: 0,
+        sponsor: { id: null, name: null, perRace: 0 },
+        drivers: [makeDriver(58), makeDriver(52)],
+      })
+      .eq("id", team.id);
+    if (error) throw error;
+    return { ok: true };
   });
 
 /** Manueller Anstoß der Server-Simulation (falls der Zeitplan gerade nachhängt). */
