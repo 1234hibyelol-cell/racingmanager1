@@ -27,6 +27,7 @@ export function RaceScreen() {
       return;
     }
     setVisibleLog(1);
+    const speed = settings.raceSpeed === "fast" ? 220 : settings.raceSpeed === "slow" ? 900 : 550;
     timer.current = setInterval(() => {
       setVisibleLog((v) => {
         if (v >= log.length) {
@@ -35,11 +36,11 @@ export function RaceScreen() {
         }
         return v + 1;
       });
-    }, 550);
+    }, speed);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [log, settings.skipAnimations]);
+  }, [log, settings.skipAnimations, settings.raceSpeed]);
 
   if (!state) return null;
   const s = state;
