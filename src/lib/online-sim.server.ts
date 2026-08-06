@@ -375,7 +375,11 @@ async function endSeason(leagueId: string, season: number) {
     })),
   );
   for (const t of list) {
-    await db().from("teams").update({ points: 0, budget: t.budget + 1_500_000 }).eq("id", t.id);
+    // Neue Saison: Punkte zurück auf 0, Sponsorenverträge werden neu verhandelt.
+    await db()
+      .from("teams")
+      .update({ points: 0, budget: t.budget + 1_500_000, sponsor_signings: 0 })
+      .eq("id", t.id);
   }
   await db().from("leagues").update({ season: season + 1, round: 0 }).eq("id", leagueId);
 }
