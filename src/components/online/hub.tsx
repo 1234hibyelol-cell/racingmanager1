@@ -472,7 +472,7 @@ export function OnlineHub() {
                     <Button
                       className="mt-2"
                       disabled={team.budget < TRAIN_STAFF_COST}
-                      onClick={run(async () => staffFn({ data: { role } }), "Personal geschult")}
+                      onClick={run(async () => staffFn({ data: { role, teamId } }), "Personal geschult")}
                     >
                       Schulung · {money(TRAIN_STAFF_COST)}
                     </Button>
@@ -486,6 +486,8 @@ export function OnlineHub() {
             <Panel title="Sponsorensystem">
               <p className="mb-3 text-sm text-muted-foreground">
                 Aktuell: {(team.sponsor ?? {}).name ?? "kein Sponsor"} · {money(Number((team.sponsor ?? {}).perRace ?? 0))} pro Rennen
+                <br />
+                Verträge diese Saison: {sponsorDeals}/{MAX_ONLINE_SPONSOR_DEALS} – danach erst wieder in der neuen Saison.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {ONLINE_SPONSORS.map((s) => (
@@ -496,7 +498,11 @@ export function OnlineHub() {
                     </div>
                     <Button
                       className="mt-2"
-                      disabled={(profile?.rating ?? 1000) < s.minRating}
+                      disabled={
+                        (profile?.rating ?? 1000) < s.minRating ||
+                        sponsorDeals >= MAX_ONLINE_SPONSOR_DEALS ||
+                        (team.sponsor ?? {}).id === s.id
+                      }
                       onClick={run(async () => sponsorFn({ data: { sponsorId: s.id, teamId } }), "Vertrag unterschrieben")}
                     >
                       Unterschreiben
