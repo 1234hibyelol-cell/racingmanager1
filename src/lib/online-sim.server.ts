@@ -388,26 +388,32 @@ async function endSeason(leagueId: string, season: number) {
 export async function runTick() {
   const nowIso = new Date().toISOString();
   const { data: leagues } = await db().from("leagues").select("*");
-  const result = { started: 0, advanced: 0 };
+  const result = { started: 0, advanced: 0, failed: 0 };
 
   for (const league of (leagues ?? []) as any[]) {
-    await fillLeague(league.id);
-    const { data: running } = await db()
-      .from("races")
-      .select("*")
-      .eq("league_id", league.id)
-      .eq("status", "running")
-      .order("round", { ascending: false })
-      .limit(1);
-    const active = (running ?? [])[0];
-    if (active) {
-      await advanceRace(active);
-      result.advanced++;
-      continue;
-    }
-    if (league.next_race_at <= nowIso) {
-      await startRace(league);
-      result.started++;
+    try {
+      await fillLeague(league.id);
+      const { data: running } = await db()
+        .from("races")
+        .select("*")
+        .eq("league_id", league.id)
+        .eq("status", "running")
+        .order("round", { ascending: false })
+        .limit(1);
+      const active = (running ?? [])[0];
+      if (active) {
+        await advanceRace(active);
+        result.advanced++;
+        continue;
+      }
+      if (league.next_race_at <= nowIso) {
+        await startRace(league);
+        result.started++;
+      }
+    } catch (error) {
+      // Eine fehlerhafte Liga darf die übrigen Ligen nicht blockieren.
+      result.failed++;
+      console.error("[tick] league failed", league.id, error);
     }
   }
   return result;
