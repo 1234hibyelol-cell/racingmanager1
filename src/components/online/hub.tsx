@@ -54,6 +54,8 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function OnlineHub() {
   const [tab, setTab] = useState<Tab>("liga");
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
+  const [showBrowser, setShowBrowser] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -64,16 +66,25 @@ export function OnlineHub() {
       const user = auth.user;
       if (!user) return null;
       const { data: profile } = await db.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      const { data: team } = await db.from("teams").select("*").eq("user_id", user.id).maybeSingle();
-      const { data: league } = team
-        ? await db.from("leagues").select("*").eq("id", team.league_id).maybeSingle()
-        : { data: null };
-      return { user, profile, team, league };
+      const { data: teamRows } = await db
+        .from("teams")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      const teams = (teamRows ?? []) as any[];
+      const { data: leagueRows } = teams.length
+        ? await db.from("leagues").select("*").in("id", teams.map((t) => t.league_id))
+        : { data: [] };
+      return { user, profile, teams, leagues: (leagueRows ?? []) as any[] };
     },
     refetchInterval: 20_000,
   });
 
-  const leagueId = me.data?.team?.league_id as string | undefined;
+  const myTeams = (me.data?.teams ?? []) as any[];
+  const selected = myTeams.find((t) => t.id === activeTeamId) ?? myTeams[0] ?? null;
+  const leagueId = selected?.league_id as string | undefined;
+  const teamId = selected?.id as string | undefined;
+
 
   const standings = useQuery({
     queryKey: ["online-standings", leagueId],
