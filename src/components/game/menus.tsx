@@ -63,27 +63,78 @@ export function MainMenu() {
 
 export function ShopScreen() {
   const { state, setScreen } = useGame();
+  const ent = useEntitlements();
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-3xl font-black uppercase">Shop</h2>
         <Button variant="ghost" onClick={() => setScreen(state ? "dashboard" : "menu")}>Zurück</Button>
       </div>
-      {state ? (
-        <PremiumScreen />
-      ) : (
-        <Panel title="Karriere nötig">
+
+      {!ent.signedIn ? (
+        <Panel title="Konto nötig">
           <p className="text-sm text-muted-foreground">
-            Der Shop wirkt auf deine Karriere. Starte ein neues Spiel oder lade einen Spielstand.
+            Premium-Inhalte gehören zu deinem Konto und gelten für alle Karrieren. Melde dich an, um den Shop zu nutzen.
           </p>
-          <div className="mt-3 flex gap-2">
-            <Button onClick={() => setScreen("newgame")}>Neues Spiel</Button>
-            <Button variant="ghost" onClick={() => setScreen("load")}>Spiel laden</Button>
-          </div>
+          <Link to="/auth" className="mt-3 inline-block">
+            <Button variant="primary">Anmelden</Button>
+          </Link>
         </Panel>
+      ) : ent.loading || !ent.data ? (
+        <Panel title="Shop">
+          <p className="text-sm text-muted-foreground">Lade Kontodaten …</p>
+        </Panel>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Credits" value={ent.data.credits} />
+            <Stat label="Speicherplätze" value={ent.data.saveSlots} />
+            <Stat label="Theme" value={ent.data.theme} />
+            <Stat label="Erweiterte Statistiken" value={ent.data.advancedStats ? "aktiv" : "inaktiv"} />
+          </div>
+          <Panel title="Credits">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Alle Käufe sind kontobasiert – sie bleiben auch nach einem Karriere-Neustart erhalten.
+            </p>
+            <Button
+              variant="accent"
+              disabled={ent.bonus.isPending}
+              onClick={() => ent.bonus.mutate(undefined, { onError: (e) => toast.error(errText(e)) })}
+            >
+              Tagesbonus abholen (+120 CR)
+            </Button>
+          </Panel>
+          <Panel title="Kosmetik & Komfort">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {PREMIUM_ITEMS.map((item) => {
+                const owned = ent.data!.owned.includes(item.id);
+                return (
+                  <div key={item.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-display font-bold">{item.name}</span>
+                      <Chip tone={owned ? "primary" : "accent"}>{owned ? "Besitz" : `${item.price} CR`}</Chip>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.desc}</p>
+                    <Button
+                      className="mt-2"
+                      disabled={owned || ent.data!.credits < item.price || ent.buy.isPending}
+                      onClick={() => ent.buy.mutate(item.id, { onError: (e) => toast.error(errText(e)) })}
+                    >
+                      {owned ? "Freigeschaltet" : "Freischalten"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        </>
       )}
     </div>
   );
+}
+
+function errText(e: unknown) {
+  return e instanceof Error ? e.message : "Aktion fehlgeschlagen";
 }
 
 
