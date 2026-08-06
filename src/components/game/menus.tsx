@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DIFFICULTY, COUNTRIES, PREMIUM_ITEMS, TEAM_STYLES } from "@/game/data";
 import { money } from "@/game/engine";
 import { AUTO_SLOT, SLOT_COUNT } from "@/game/save";
-import { useGame } from "@/game/store";
+import { DEFAULT_SETTINGS, useGame } from "@/game/store";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import type { Difficulty, Team } from "@/game/types";
 import { Button, Chip, Field, Panel, Stat, inputClass } from "./ui";
