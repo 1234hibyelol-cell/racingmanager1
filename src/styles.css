@@ -126,3 +126,16 @@
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   }
 }
+
+/* Einstellungen: kompakte Oberfläche und hoher Kontrast */
+html[data-compact="on"] .panel {
+  padding: 0.65rem;
+}
+html[data-compact="on"] main {
+  --spacing: 0.2rem;
+  font-size: 0.94rem;
+}
+html[data-contrast="high"] {
+  --border: oklch(0.72 0.02 260);
+  --muted-foreground: oklch(0.88 0.01 260);
+}
