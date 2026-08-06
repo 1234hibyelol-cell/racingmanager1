@@ -1,13 +1,14 @@
 // Hauptmenü, Karriere-Erstellung, Laden, Einstellungen.
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { DIFFICULTY, COUNTRIES, TEAM_STYLES } from "@/game/data";
+import { toast } from "sonner";
+import { DIFFICULTY, COUNTRIES, PREMIUM_ITEMS, TEAM_STYLES } from "@/game/data";
 import { money } from "@/game/engine";
 import { AUTO_SLOT, SLOT_COUNT } from "@/game/save";
-import { useGame } from "@/game/store";
+import { DEFAULT_SETTINGS, useGame } from "@/game/store";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import type { Difficulty, Team } from "@/game/types";
-import { PremiumScreen } from "./views2";
-import { Button, Chip, Field, Panel, inputClass } from "./ui";
+import { Button, Chip, Field, Panel, Stat, inputClass } from "./ui";
 
 const LOGOS = ["🏁", "⚡", "🦅", "🛞", "🔥", "🐺", "★", "🛡️"];
 const COLORS = ["#e0332f", "#f0a020", "#2f7de0", "#20c997", "#8e5cf7", "#ff6b35"];
@@ -63,27 +64,78 @@ export function MainMenu() {
 
 export function ShopScreen() {
   const { state, setScreen } = useGame();
+  const ent = useEntitlements();
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-3xl font-black uppercase">Shop</h2>
         <Button variant="ghost" onClick={() => setScreen(state ? "dashboard" : "menu")}>Zurück</Button>
       </div>
-      {state ? (
-        <PremiumScreen />
-      ) : (
-        <Panel title="Karriere nötig">
+
+      {!ent.signedIn ? (
+        <Panel title="Konto nötig">
           <p className="text-sm text-muted-foreground">
-            Der Shop wirkt auf deine Karriere. Starte ein neues Spiel oder lade einen Spielstand.
+            Premium-Inhalte gehören zu deinem Konto und gelten für alle Karrieren. Melde dich an, um den Shop zu nutzen.
           </p>
-          <div className="mt-3 flex gap-2">
-            <Button onClick={() => setScreen("newgame")}>Neues Spiel</Button>
-            <Button variant="ghost" onClick={() => setScreen("load")}>Spiel laden</Button>
-          </div>
+          <Link to="/auth" className="mt-3 inline-block">
+            <Button variant="primary">Anmelden</Button>
+          </Link>
         </Panel>
+      ) : ent.loading || !ent.data ? (
+        <Panel title="Shop">
+          <p className="text-sm text-muted-foreground">Lade Kontodaten …</p>
+        </Panel>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Credits" value={ent.data.credits} />
+            <Stat label="Speicherplätze" value={ent.data.saveSlots} />
+            <Stat label="Theme" value={ent.data.theme} />
+            <Stat label="Erweiterte Statistiken" value={ent.data.advancedStats ? "aktiv" : "inaktiv"} />
+          </div>
+          <Panel title="Credits">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Alle Käufe sind kontobasiert – sie bleiben auch nach einem Karriere-Neustart erhalten.
+            </p>
+            <Button
+              variant="accent"
+              disabled={ent.bonus.isPending}
+              onClick={() => ent.bonus.mutate(undefined, { onError: (e) => toast.error(errText(e)) })}
+            >
+              Tagesbonus abholen (+120 CR)
+            </Button>
+          </Panel>
+          <Panel title="Kosmetik & Komfort">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {PREMIUM_ITEMS.map((item) => {
+                const owned = ent.data!.owned.includes(item.id);
+                return (
+                  <div key={item.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-display font-bold">{item.name}</span>
+                      <Chip tone={owned ? "primary" : "accent"}>{owned ? "Besitz" : `${item.price} CR`}</Chip>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.desc}</p>
+                    <Button
+                      className="mt-2"
+                      disabled={owned || ent.data!.credits < item.price || ent.buy.isPending}
+                      onClick={() => ent.buy.mutate(item.id, { onError: (e) => toast.error(errText(e)) })}
+                    >
+                      {owned ? "Freigeschaltet" : "Freischalten"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        </>
       )}
     </div>
   );
+}
+
+function errText(e: unknown) {
+  return e instanceof Error ? e.message : "Aktion fehlgeschlagen";
 }
 
 
@@ -227,29 +279,93 @@ export function LoadScreen() {
 }
 
 export function SettingsScreen() {
-  const { settings, setSettings, setScreen, state } = useGame();
+  const { settings, setSettings, setScreen, state, saves, removeSave } = useGame();
+  const ent = useEntitlements();
+  const toggles: [keyof typeof settings, string, string][] = [
+    ["skipAnimations", "Animationen überspringen", "Rennlog erscheint sofort"],
+    ["autoSave", "Automatisches Speichern", "Speichert nach jeder Aktion in Slot 0"],
+    ["toasts", "Hinweis-Meldungen", "Kurze Bestätigungen am Bildschirmrand"],
+    ["compactUi", "Kompakte Oberfläche", "Weniger Abstände, mehr Inhalt"],
+    ["highContrast", "Hoher Kontrast", "Stärkere Ränder und Textfarben"],
+    ["confirmSpending", "Ausgaben bestätigen", "Rückfrage bei teuren Käufen"],
+    ["showHints", "Tipps anzeigen", "Erklärtexte in den Menüs"],
+  ];
+
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-8">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-3xl font-black uppercase">Einstellungen</h2>
         <Button variant="ghost" onClick={() => setScreen(state ? "dashboard" : "menu")}>Zurück</Button>
       </div>
-      <Panel title="Spiel">
+
+      <Panel title="Spiel & Oberfläche">
         <div className="space-y-3">
-          {([
-            ["skipAnimations", "Animationen überspringen"],
-            ["autoSave", "Automatisches Speichern"],
-          ] as const).map(([key, label]) => (
+          {toggles.map(([key, label, hint]) => (
             <label key={key} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 px-3 py-3">
-              <span className="text-sm">{label}</span>
+              <span>
+                <span className="block text-sm">{label}</span>
+                <span className="block text-xs text-muted-foreground">{hint}</span>
+              </span>
               <input
                 type="checkbox"
                 className="size-5 accent-[var(--primary)]"
-                checked={settings[key]}
+                checked={settings[key] as boolean}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
               />
             </label>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="Renngeschwindigkeit">
+        <div className="flex gap-2">
+          {([
+            ["slow", "Langsam"],
+            ["normal", "Normal"],
+            ["fast", "Schnell"],
+          ] as const).map(([value, label]) => (
+            <Button
+              key={value}
+              variant={settings.raceSpeed === value ? "primary" : "ghost"}
+              onClick={() => setSettings({ ...settings, raceSpeed: value })}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Konto">
+        {ent.signedIn ? (
+          <p className="text-sm text-muted-foreground">
+            Angemeldet · {ent.data?.credits ?? 0} Credits · {ent.data?.owned.length ?? 0} Premium-Inhalte ·{" "}
+            {ent.data?.saveSlots ?? SLOT_COUNT} Speicherplätze
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nicht angemeldet – Premium und Online-Ligen benötigen ein Konto.</p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link to="/auth"><Button variant="ghost">{ent.signedIn ? "Konto wechseln" : "Anmelden"}</Button></Link>
+          <Link to="/online"><Button variant="ghost">Multiplayer</Button></Link>
+          <Button variant="ghost" onClick={() => setScreen("shop")}>Shop</Button>
+        </div>
+      </Panel>
+
+      <Panel title="Daten">
+        <p className="text-xs text-muted-foreground">
+          {saves.length} lokale Spielstände. Autosave liegt in Slot {AUTO_SLOT}.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            disabled={!saves.some((s) => s.slot === AUTO_SLOT)}
+            onClick={() => removeSave(AUTO_SLOT)}
+          >
+            Autosave löschen
+          </Button>
+          <Button variant="ghost" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>
+            Einstellungen zurücksetzen
+          </Button>
         </div>
       </Panel>
     </div>

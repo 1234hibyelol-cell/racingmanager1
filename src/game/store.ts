@@ -93,12 +93,53 @@ export type Screen =
 export interface Settings {
   skipAnimations: boolean;
   autoSave: boolean;
+  raceSpeed: "slow" | "normal" | "fast";
+  toasts: boolean;
+  compactUi: boolean;
+  highContrast: boolean;
+  confirmSpending: boolean;
+  showHints: boolean;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  skipAnimations: false,
+  autoSave: true,
+  raceSpeed: "normal",
+  toasts: true,
+  compactUi: false,
+  highContrast: false,
+  confirmSpending: false,
+  showHints: true,
+};
+
+const SETTINGS_KEY = "legends-grid/settings";
+
+function readSettings(): Settings {
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    return raw ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export function useGameEngine() {
   const [state, setState] = useState<GameState | null>(null);
   const [screen, setScreen] = useState<Screen>("menu");
-  const [settings, setSettings] = useState<Settings>({ skipAnimations: false, autoSave: true });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef<Settings>(DEFAULT_SETTINGS);
+  settingsRef.current = settings;
+
+  // Einstellungen sind kontobasiert-lokal und überleben Karrieren.
+  useEffect(() => setSettings(readSettings()), []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const root = document.documentElement;
+    root.dataset["compact"] = settings.compactUi ? "on" : "off";
+    root.dataset["contrast"] = settings.highContrast ? "high" : "normal";
+  }, [settings]);
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
@@ -108,6 +149,7 @@ export function useGameEngine() {
   useEffect(() => refreshSaves(), [refreshSaves]);
 
   const notify = useCallback((msg: string) => {
+    if (!settingsRef.current.toasts) return;
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);

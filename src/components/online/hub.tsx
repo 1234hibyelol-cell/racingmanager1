@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createOnlineLeague,
   joinLeague,
+  leaveLeague,
+  MAX_LEAGUES_PER_USER,
+  MAX_ONLINE_SPONSOR_DEALS,
   requestFriend,
   renameProfile,
   respondFriend,
@@ -54,6 +57,8 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function OnlineHub() {
   const [tab, setTab] = useState<Tab>("liga");
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
+  const [showBrowser, setShowBrowser] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -64,16 +69,25 @@ export function OnlineHub() {
       const user = auth.user;
       if (!user) return null;
       const { data: profile } = await db.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      const { data: team } = await db.from("teams").select("*").eq("user_id", user.id).maybeSingle();
-      const { data: league } = team
-        ? await db.from("leagues").select("*").eq("id", team.league_id).maybeSingle()
-        : { data: null };
-      return { user, profile, team, league };
+      const { data: teamRows } = await db
+        .from("teams")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      const teams = (teamRows ?? []) as any[];
+      const { data: leagueRows } = teams.length
+        ? await db.from("leagues").select("*").in("id", teams.map((t) => t.league_id))
+        : { data: [] };
+      return { user, profile, teams, leagues: (leagueRows ?? []) as any[] };
     },
     refetchInterval: 20_000,
   });
 
-  const leagueId = me.data?.team?.league_id as string | undefined;
+  const myTeams = (me.data?.teams ?? []) as any[];
+  const selected = myTeams.find((t) => t.id === activeTeamId) ?? myTeams[0] ?? null;
+  const leagueId = selected?.league_id as string | undefined;
+  const teamId = selected?.id as string | undefined;
+
 
   const standings = useQuery({
     queryKey: ["online-standings", leagueId],
@@ -148,6 +162,7 @@ export function OnlineHub() {
 
   const joinFn = useServerFn(joinLeague);
   const createLeagueFn = useServerFn(createOnlineLeague);
+  const leaveFn = useServerFn(leaveLeague);
   const tickFn = useServerFn(tickNow);
   const hqFn = useServerFn(upgradeHq);
   const researchFn = useServerFn(unlockResearch);
@@ -167,10 +182,12 @@ export function OnlineHub() {
 
   if (me.isLoading) return <main className="p-6">Lade Online-Daten …</main>;
 
-  const team = me.data?.team;
-  const league = me.data?.league;
+  const team = selected;
+  const league = (me.data?.leagues ?? []).find((l) => l.id === leagueId);
+  const leagueName = (id: string) => (me.data?.leagues ?? []).find((l) => l.id === id)?.name ?? "Liga";
   const profile = me.data?.profile;
   const liveRace = (races.data ?? []).find((r) => r.status === "running");
+  const sponsorDeals = Number(team?.sponsor_signings ?? 0);
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4">
@@ -187,18 +204,53 @@ export function OnlineHub() {
         </div>
       </header>
 
-      {!team && (
-        <LeagueBrowser
-          onJoin={run(
-            async (v: { teamName: string; color: string; leagueId?: string }) => joinFn({ data: v }),
-            "Team registriert!",
+      {myTeams.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="label-xs">Meine Ligen ({myTeams.length}/{MAX_LEAGUES_PER_USER})</span>
+          {myTeams.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTeamId(t.id)}
+              className={`rounded-lg border px-3 py-1 text-sm ${t.id === teamId ? "border-primary bg-primary/10" : "border-border bg-secondary/40"}`}
+            >
+              {leagueName(t.league_id)} · {t.name}
+            </button>
+          ))}
+          <Button
+            variant="accent"
+            disabled={myTeams.length >= MAX_LEAGUES_PER_USER}
+            onClick={() => setShowBrowser((v) => !v)}
+          >
+            {showBrowser ? "Ligaübersicht schließen" : "Weitere Liga beitreten"}
+          </Button>
+          {team && (
+            <Button
+              variant="ghost"
+              onClick={run(async () => {
+                await leaveFn({ data: { teamId: team.id } });
+                setActiveTeamId(null);
+              }, "Liga verlassen")}
+            >
+              Diese Liga verlassen
+            </Button>
           )}
+        </div>
+      )}
+
+      {(myTeams.length === 0 || showBrowser) && (
+        <LeagueBrowser
+          joinedLeagueIds={myTeams.map((t) => t.league_id as string)}
+          onJoin={run(async (v: { teamName: string; color: string; leagueId?: string }) => {
+            await joinFn({ data: v });
+            setShowBrowser(false);
+          }, "Team registriert!")}
           onCreate={run(async (name: string) => createLeagueFn({ data: { name } }), "Liga erstellt!")}
         />
       )}
 
 
       {team && (
+
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Stat label="Team" value={team.name} hint={league?.name ?? ""} />
@@ -295,7 +347,7 @@ export function OnlineHub() {
                       <Button
                         key={s}
                         variant={team.strategy === s ? "primary" : "ghost"}
-                        onClick={run(async () => strategyFn({ data: { strategy: s } }), "Strategie gespeichert")}
+                        onClick={run(async () => strategyFn({ data: { strategy: s, teamId } }), "Strategie gespeichert")}
                       >
                         {s === "push" ? "Angriff" : s === "normal" ? "Normal" : "Schonen"}
                       </Button>
@@ -335,7 +387,7 @@ export function OnlineHub() {
                       <Button
                         className="mt-2"
                         disabled={level >= HQ_MAX || team.budget < hqCost(level)}
-                        onClick={run(async () => hqFn({ data: { key: k } }), "Ausbau abgeschlossen")}
+                        onClick={run(async () => hqFn({ data: { key: k, teamId } }), "Ausbau abgeschlossen")}
                       >
                         Ausbauen · {money(hqCost(level))}
                       </Button>
@@ -370,7 +422,7 @@ export function OnlineHub() {
                               <Button
                                 className="mt-1"
                                 disabled={locked || team.budget < n.cost}
-                                onClick={run(async () => researchFn({ data: { nodeId: n.id } }), "Forschung abgeschlossen")}
+                                onClick={run(async () => researchFn({ data: { nodeId: n.id, teamId } }), "Forschung abgeschlossen")}
                               >
                                 {locked ? "Gesperrt" : money(n.cost)}
                               </Button>
@@ -402,7 +454,7 @@ export function OnlineHub() {
                     <Button
                       className="mt-2"
                       disabled={team.budget < TRAIN_DRIVER_COST}
-                      onClick={run(async () => driverFn({ data: { index: i } }), "Trainingseinheit absolviert")}
+                      onClick={run(async () => driverFn({ data: { index: i, teamId } }), "Trainingseinheit absolviert")}
                     >
                       Training · {money(TRAIN_DRIVER_COST)}
                     </Button>
@@ -420,7 +472,7 @@ export function OnlineHub() {
                     <Button
                       className="mt-2"
                       disabled={team.budget < TRAIN_STAFF_COST}
-                      onClick={run(async () => staffFn({ data: { role } }), "Personal geschult")}
+                      onClick={run(async () => staffFn({ data: { role, teamId } }), "Personal geschult")}
                     >
                       Schulung · {money(TRAIN_STAFF_COST)}
                     </Button>
@@ -434,6 +486,8 @@ export function OnlineHub() {
             <Panel title="Sponsorensystem">
               <p className="mb-3 text-sm text-muted-foreground">
                 Aktuell: {(team.sponsor ?? {}).name ?? "kein Sponsor"} · {money(Number((team.sponsor ?? {}).perRace ?? 0))} pro Rennen
+                <br />
+                Verträge diese Saison: {sponsorDeals}/{MAX_ONLINE_SPONSOR_DEALS} – danach erst wieder in der neuen Saison.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {ONLINE_SPONSORS.map((s) => (
@@ -444,8 +498,12 @@ export function OnlineHub() {
                     </div>
                     <Button
                       className="mt-2"
-                      disabled={(profile?.rating ?? 1000) < s.minRating}
-                      onClick={run(async () => sponsorFn({ data: { sponsorId: s.id } }), "Vertrag unterschrieben")}
+                      disabled={
+                        (profile?.rating ?? 1000) < s.minRating ||
+                        sponsorDeals >= MAX_ONLINE_SPONSOR_DEALS ||
+                        (team.sponsor ?? {}).id === s.id
+                      }
+                      onClick={run(async () => sponsorFn({ data: { sponsorId: s.id, teamId } }), "Vertrag unterschrieben")}
                     >
                       Unterschreiben
                     </Button>
@@ -494,9 +552,11 @@ function countdown(iso?: string | null) {
 function LeagueBrowser({
   onJoin,
   onCreate,
+  joinedLeagueIds,
 }: {
   onJoin: (v: { teamName: string; color: string; leagueId?: string }) => Promise<void>;
   onCreate: (name: string) => Promise<void>;
+  joinedLeagueIds: string[];
 }) {
   const qc = useQueryClient();
   const [teamName, setName] = useState("");
@@ -602,8 +662,12 @@ function LeagueBrowser({
                   Saison {l.season} · Lauf {l.round} · {l.players} Spieler · {l.free} freie Plätze
                 </span>
               </span>
-              <Button variant="primary" disabled={!nameOk || busy || l.free <= 0} onClick={() => doJoin(l.id)}>
-                {l.free > 0 ? "Beitreten" : "Voll"}
+              <Button
+                variant="primary"
+                disabled={!nameOk || busy || l.free <= 0 || joinedLeagueIds.includes(l.id)}
+                onClick={() => doJoin(l.id)}
+              >
+                {joinedLeagueIds.includes(l.id) ? "Dabei" : l.free > 0 ? "Beitreten" : "Voll"}
               </Button>
             </li>
           ))}
