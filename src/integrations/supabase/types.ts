@@ -372,6 +372,7 @@ export type Database = {
           points: number
           research: Json
           sponsor: Json
+          sponsor_signings: number
           staff: Json
           strategy: string
           user_id: string | null
@@ -390,6 +391,7 @@ export type Database = {
           points?: number
           research?: Json
           sponsor?: Json
+          sponsor_signings?: number
           staff?: Json
           strategy?: string
           user_id?: string | null
@@ -408,6 +410,7 @@ export type Database = {
           points?: number
           research?: Json
           sponsor?: Json
+          sponsor_signings?: number
           staff?: Json
           strategy?: string
           user_id?: string | null
@@ -422,6 +425,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_entitlements: {
+        Row: {
+          advanced_stats: boolean
+          created_at: string
+          credits: number
+          owned: string[]
+          save_slots: number
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          advanced_stats?: boolean
+          created_at?: string
+          credits?: number
+          owned?: string[]
+          save_slots?: number
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          advanced_stats?: boolean
+          created_at?: string
+          credits?: number
+          owned?: string[]
+          save_slots?: number
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
