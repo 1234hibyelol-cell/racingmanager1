@@ -159,6 +159,7 @@ export function OnlineHub() {
 
   const joinFn = useServerFn(joinLeague);
   const createLeagueFn = useServerFn(createOnlineLeague);
+  const leaveFn = useServerFn(leaveLeague);
   const tickFn = useServerFn(tickNow);
   const hqFn = useServerFn(upgradeHq);
   const researchFn = useServerFn(unlockResearch);
@@ -178,10 +179,12 @@ export function OnlineHub() {
 
   if (me.isLoading) return <main className="p-6">Lade Online-Daten …</main>;
 
-  const team = me.data?.team;
-  const league = me.data?.league;
+  const team = selected;
+  const league = (me.data?.leagues ?? []).find((l) => l.id === leagueId);
+  const leagueName = (id: string) => (me.data?.leagues ?? []).find((l) => l.id === id)?.name ?? "Liga";
   const profile = me.data?.profile;
   const liveRace = (races.data ?? []).find((r) => r.status === "running");
+  const sponsorDeals = Number(team?.sponsor_signings ?? 0);
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4">
@@ -198,18 +201,53 @@ export function OnlineHub() {
         </div>
       </header>
 
-      {!team && (
-        <LeagueBrowser
-          onJoin={run(
-            async (v: { teamName: string; color: string; leagueId?: string }) => joinFn({ data: v }),
-            "Team registriert!",
+      {myTeams.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="label-xs">Meine Ligen ({myTeams.length}/{MAX_LEAGUES_PER_USER})</span>
+          {myTeams.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTeamId(t.id)}
+              className={`rounded-lg border px-3 py-1 text-sm ${t.id === teamId ? "border-primary bg-primary/10" : "border-border bg-secondary/40"}`}
+            >
+              {leagueName(t.league_id)} · {t.name}
+            </button>
+          ))}
+          <Button
+            variant="accent"
+            disabled={myTeams.length >= MAX_LEAGUES_PER_USER}
+            onClick={() => setShowBrowser((v) => !v)}
+          >
+            {showBrowser ? "Ligaübersicht schließen" : "Weitere Liga beitreten"}
+          </Button>
+          {team && (
+            <Button
+              variant="ghost"
+              onClick={run(async () => {
+                await leaveFn({ data: { teamId: team.id } });
+                setActiveTeamId(null);
+              }, "Liga verlassen")}
+            >
+              Diese Liga verlassen
+            </Button>
           )}
+        </div>
+      )}
+
+      {(myTeams.length === 0 || showBrowser) && (
+        <LeagueBrowser
+          joinedLeagueIds={myTeams.map((t) => t.league_id as string)}
+          onJoin={run(async (v: { teamName: string; color: string; leagueId?: string }) => {
+            await joinFn({ data: v });
+            setShowBrowser(false);
+          }, "Team registriert!")}
           onCreate={run(async (name: string) => createLeagueFn({ data: { name } }), "Liga erstellt!")}
         />
       )}
 
 
       {team && (
+
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Stat label="Team" value={team.name} hint={league?.name ?? ""} />
