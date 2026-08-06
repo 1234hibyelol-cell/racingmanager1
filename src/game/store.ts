@@ -149,6 +149,7 @@ export function useGameEngine() {
   useEffect(() => refreshSaves(), [refreshSaves]);
 
   const notify = useCallback((msg: string) => {
+    if (!settingsRef.current.toasts) return;
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);
