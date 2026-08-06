@@ -279,29 +279,93 @@ export function LoadScreen() {
 }
 
 export function SettingsScreen() {
-  const { settings, setSettings, setScreen, state } = useGame();
+  const { settings, setSettings, setScreen, state, saves, removeSave } = useGame();
+  const ent = useEntitlements();
+  const toggles: [keyof typeof settings, string, string][] = [
+    ["skipAnimations", "Animationen überspringen", "Rennlog erscheint sofort"],
+    ["autoSave", "Automatisches Speichern", "Speichert nach jeder Aktion in Slot 0"],
+    ["toasts", "Hinweis-Meldungen", "Kurze Bestätigungen am Bildschirmrand"],
+    ["compactUi", "Kompakte Oberfläche", "Weniger Abstände, mehr Inhalt"],
+    ["highContrast", "Hoher Kontrast", "Stärkere Ränder und Textfarben"],
+    ["confirmSpending", "Ausgaben bestätigen", "Rückfrage bei teuren Käufen"],
+    ["showHints", "Tipps anzeigen", "Erklärtexte in den Menüs"],
+  ];
+
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-8">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-3xl font-black uppercase">Einstellungen</h2>
         <Button variant="ghost" onClick={() => setScreen(state ? "dashboard" : "menu")}>Zurück</Button>
       </div>
-      <Panel title="Spiel">
+
+      <Panel title="Spiel & Oberfläche">
         <div className="space-y-3">
-          {([
-            ["skipAnimations", "Animationen überspringen"],
-            ["autoSave", "Automatisches Speichern"],
-          ] as const).map(([key, label]) => (
+          {toggles.map(([key, label, hint]) => (
             <label key={key} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 px-3 py-3">
-              <span className="text-sm">{label}</span>
+              <span>
+                <span className="block text-sm">{label}</span>
+                <span className="block text-xs text-muted-foreground">{hint}</span>
+              </span>
               <input
                 type="checkbox"
                 className="size-5 accent-[var(--primary)]"
-                checked={settings[key]}
+                checked={settings[key] as boolean}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
               />
             </label>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="Renngeschwindigkeit">
+        <div className="flex gap-2">
+          {([
+            ["slow", "Langsam"],
+            ["normal", "Normal"],
+            ["fast", "Schnell"],
+          ] as const).map(([value, label]) => (
+            <Button
+              key={value}
+              variant={settings.raceSpeed === value ? "primary" : "ghost"}
+              onClick={() => setSettings({ ...settings, raceSpeed: value })}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Konto">
+        {ent.signedIn ? (
+          <p className="text-sm text-muted-foreground">
+            Angemeldet · {ent.data?.credits ?? 0} Credits · {ent.data?.owned.length ?? 0} Premium-Inhalte ·{" "}
+            {ent.data?.saveSlots ?? SLOT_COUNT} Speicherplätze
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nicht angemeldet – Premium und Online-Ligen benötigen ein Konto.</p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link to="/auth"><Button variant="ghost">{ent.signedIn ? "Konto wechseln" : "Anmelden"}</Button></Link>
+          <Link to="/online"><Button variant="ghost">Multiplayer</Button></Link>
+          <Button variant="ghost" onClick={() => setScreen("shop")}>Shop</Button>
+        </div>
+      </Panel>
+
+      <Panel title="Daten">
+        <p className="text-xs text-muted-foreground">
+          {saves.length} lokale Spielstände. Autosave liegt in Slot {AUTO_SLOT}.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            disabled={!saves.some((s) => s.slot === AUTO_SLOT)}
+            onClick={() => removeSave(AUTO_SLOT)}
+          >
+            Autosave löschen
+          </Button>
+          <Button variant="ghost" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>
+            Einstellungen zurücksetzen
+          </Button>
         </div>
       </Panel>
     </div>
