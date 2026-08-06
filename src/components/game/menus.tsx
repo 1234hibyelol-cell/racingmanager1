@@ -1,13 +1,14 @@
 // Hauptmenü, Karriere-Erstellung, Laden, Einstellungen.
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { DIFFICULTY, COUNTRIES, TEAM_STYLES } from "@/game/data";
+import { toast } from "sonner";
+import { DIFFICULTY, COUNTRIES, PREMIUM_ITEMS, TEAM_STYLES } from "@/game/data";
 import { money } from "@/game/engine";
 import { AUTO_SLOT, SLOT_COUNT } from "@/game/save";
 import { useGame } from "@/game/store";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import type { Difficulty, Team } from "@/game/types";
-import { PremiumScreen } from "./views2";
-import { Button, Chip, Field, Panel, inputClass } from "./ui";
+import { Button, Chip, Field, Panel, Stat, inputClass } from "./ui";
 
 const LOGOS = ["🏁", "⚡", "🦅", "🛞", "🔥", "🐺", "★", "🛡️"];
 const COLORS = ["#e0332f", "#f0a020", "#2f7de0", "#20c997", "#8e5cf7", "#ff6b35"];
