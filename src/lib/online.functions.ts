@@ -141,7 +141,7 @@ export const tickNow = createServerFn({ method: "POST" })
 
 export const setStrategy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { strategy: string; teamId?: string }) =>
+  .inputValidator((input: { strategy: string; teamId?: string | undefined }) =>
     teamInput.extend({ strategy: z.enum(["push", "normal", "conserve"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -153,7 +153,7 @@ export const setStrategy = createServerFn({ method: "POST" })
 
 export const upgradeHq = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { key: string; teamId?: string }) => teamInput.extend({ key: z.enum(HQ_KEYS) }).parse(input))
+  .inputValidator((input: { key: string; teamId?: string | undefined }) => teamInput.extend({ key: z.enum(HQ_KEYS) }).parse(input))
   .handler(async ({ data, context }) => {
     const db = await admin();
     const team = await ownTeam(db, context.userId, data.teamId);
@@ -169,7 +169,7 @@ export const upgradeHq = createServerFn({ method: "POST" })
 
 export const unlockResearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { nodeId: string; teamId?: string }) =>
+  .inputValidator((input: { nodeId: string; teamId?: string | undefined }) =>
     teamInput.extend({ nodeId: z.string().min(2).max(40) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -190,7 +190,7 @@ export const unlockResearch = createServerFn({ method: "POST" })
 
 export const trainDriver = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { index: number; teamId?: string }) =>
+  .inputValidator((input: { index: number; teamId?: string | undefined }) =>
     teamInput.extend({ index: z.number().int().min(0).max(1) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -213,7 +213,7 @@ export const trainDriver = createServerFn({ method: "POST" })
 
 export const trainStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { role: string; teamId?: string }) => teamInput.extend({ role: z.enum(STAFF_ROLES) }).parse(input))
+  .inputValidator((input: { role: string; teamId?: string | undefined }) => teamInput.extend({ role: z.enum(STAFF_ROLES) }).parse(input))
   .handler(async ({ data, context }) => {
     const db = await admin();
     const team = await ownTeam(db, context.userId, data.teamId);
@@ -226,7 +226,7 @@ export const trainStaff = createServerFn({ method: "POST" })
 
 export const signSponsor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sponsorId: string; teamId?: string }) =>
+  .inputValidator((input: { sponsorId: string; teamId?: string | undefined }) =>
     teamInput.extend({ sponsorId: z.string().min(2).max(40) }).parse(input),
   )
   .handler(async ({ data, context }) => {
